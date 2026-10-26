@@ -1,0 +1,55 @@
+# Development override (ADR-0008):
+#   docker compose -f compose.yaml -f compose.dev.yaml up --build
+# dev targets with autoreload, source bind mounts, datastore ports on the host.
+
+services:
+  postgres:
+    ports: ["5433:5432"]
+    networks: [backend, edge]  # internal networks can't publish ports
+  mysql:
+    ports: ["3307:3306"]
+    networks: [backend, edge]  # internal networks can't publish ports
+  mongo:
+    ports: ["27018:27017"]
+    networks: [backend, edge]  # internal networks can't publish ports
+  redis:
+    ports: ["6380:6379"]
+    networks: [backend, edge]  # internal networks can't publish ports
+  rabbitmq:
+    ports: ["15672:15672"]
+    networks: [backend, edge]
+
+  identity:
+    build:
+      target: dev
+    environment:
+      IDENTITY_ENV: dev
+    volumes:
+      - ./services/identity/src:/app/services/identity/src
+      - ./packages/innotter-common/src:/app/packages/innotter-common/src
+    user: root
+
+  core-api:
+    build:
+      target: dev
+    environment:
+      CORE_ENV: dev
+    volumes:
+      - ./services/core/src:/app/services/core/src
+      - ./packages/innotter-common/src:/app/packages/innotter-common/src
+
+  core-consumer:
+    build:
+      target: dev
+    volumes:
+      - ./services/core/src:/app/services/core/src
+      - ./packages/innotter-common/src:/app/packages/innotter-common/src
+
+  notification:
+    build:
+      target: dev
+    environment:
+      NOTIF_ENV: dev
+    volumes:
+      - ./services/notification/src:/app/services/notification/src
+      - ./packages/innotter-common/src:/app/packages/innotter-common/src

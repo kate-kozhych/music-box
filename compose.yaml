@@ -1,0 +1,332 @@
+# Innotter 2.0 — one Compose project (ADR-0008).
+#
+#   cp .env.example .env
+#   docker compose up --build            # prod targets, offline catalog
+#   docker compose --profile test run --rm identity-tests
+#   docker compose --profile test run --rm core-tests
+#
+# Only the gateway publishes a host port (http://localhost:8080).
+# Not in this iteration: core-worker (Celery outbox relay, B-48) and the
+# notification consumer (B-51).
+
+name: ${COMPOSE_PROJECT_NAME:-innotter}
+
+x-python-healthcheck: &python-healthcheck
+  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+  interval: 5s
+  timeout: 5s
+  retries: 12
+  start_period: 10s
+
+x-identity-env: &identity-env
+  IDENTITY_ENV: ${IDENTITY_ENV:-prod}
+  IDENTITY_LOG_LEVEL: ${IDENTITY_LOG_LEVEL:-INFO}
+  IDENTITY_DB_HOST: ${IDENTITY_DB_HOST:-postgres}
+  IDENTITY_DB_PORT: ${IDENTITY_DB_PORT:-5432}
+  IDENTITY_DB_NAME: ${IDENTITY_DB_NAME:-identity}
+  IDENTITY_DB_USER: ${IDENTITY_DB_USER:-identity}
+  IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?set IDENTITY_DB_PASSWORD in .env}
+  IDENTITY_REDIS_AUTH_URL: ${IDENTITY_REDIS_AUTH_URL:-redis://redis:6379/0}
+  IDENTITY_REDIS_THROTTLE_URL: ${IDENTITY_REDIS_THROTTLE_URL:-redis://redis:6379/3}
+  IDENTITY_AMQP_URL: ${IDENTITY_AMQP_URL:?set IDENTITY_AMQP_URL in .env}
+  IDENTITY_JWT_ISSUER: ${IDENTITY_JWT_ISSUER:-innotter-identity}
+  IDENTITY_JWT_AUDIENCE: ${IDENTITY_JWT_AUDIENCE:-innotter}
+  IDENTITY_ACCESS_TOKEN_TTL_SECONDS: ${IDENTITY_ACCESS_TOKEN_TTL_SECONDS:-900}
+  IDENTITY_REFRESH_TOKEN_TTL_DAYS: ${IDENTITY_REFRESH_TOKEN_TTL_DAYS:-7}
+  IDENTITY_KEYS_DIR: /var/lib/identity/keys
+  IDENTITY_AVATAR_DIR: /var/lib/identity/avatars
+  IDENTITY_COOKIE_SECURE: ${IDENTITY_COOKIE_SECURE:-false}
+  IDENTITY_OUTBOX_RELAY_ENABLED: ${IDENTITY_OUTBOX_RELAY_ENABLED:-true}
+  IDENTITY_LOGIN_MAX_FAILURES: ${IDENTITY_LOGIN_MAX_FAILURES:-5}
+  IDENTITY_LOGIN_WINDOW_SECONDS: ${IDENTITY_LOGIN_WINDOW_SECONDS:-900}
+  IDENTITY_REGISTER_MAX_PER_HOUR: ${IDENTITY_REGISTER_MAX_PER_HOUR:-10}
+  IDENTITY_ARGON2_TIME_COST: ${IDENTITY_ARGON2_TIME_COST:-3}
+  IDENTITY_ARGON2_MEMORY_COST_KIB: ${IDENTITY_ARGON2_MEMORY_COST_KIB:-65536}
+  IDENTITY_ARGON2_PARALLELISM: ${IDENTITY_ARGON2_PARALLELISM:-4}
+  IDENTITY_ADMIN_USERNAME: ${IDENTITY_ADMIN_USERNAME:-}
+  IDENTITY_ADMIN_EMAIL: ${IDENTITY_ADMIN_EMAIL:-}
+  IDENTITY_ADMIN_PASSWORD: ${IDENTITY_ADMIN_PASSWORD:-}
+
+x-core-env: &core-env
+  DJANGO_SETTINGS_MODULE: innotter_core.config.settings.base
+  CORE_ENV: ${CORE_ENV:-prod}
+  CORE_LOG_LEVEL: ${CORE_LOG_LEVEL:-INFO}
+  CORE_SECRET_KEY: ${CORE_SECRET_KEY:?set CORE_SECRET_KEY in .env}
+  CORE_ALLOWED_HOSTS: ${CORE_ALLOWED_HOSTS:-localhost,core-api}
+  CORE_DB_HOST: ${CORE_DB_HOST:-mysql}
+  CORE_DB_PORT: ${CORE_DB_PORT:-3306}
+  CORE_DB_NAME: ${CORE_DB_NAME:-innotter_core}
+  CORE_DB_USER: ${CORE_DB_USER:-innotter_core}
+  CORE_DB_PASSWORD: ${CORE_DB_PASSWORD:?set CORE_DB_PASSWORD in .env}
+  CORE_REDIS_AUTH_URL: ${CORE_REDIS_AUTH_URL:-redis://redis:6379/0}
+  CORE_REDIS_CACHE_URL: ${CORE_REDIS_CACHE_URL:-redis://redis:6379/2}
+  CORE_CELERY_BROKER_URL: ${CORE_CELERY_BROKER_URL:-redis://redis:6379/1}
+  CORE_AMQP_URL: ${CORE_AMQP_URL:?set CORE_AMQP_URL in .env}
+  CORE_JWKS_URL: ${CORE_JWKS_URL:-http://identity:8000/.well-known/jwks.json}
+  CORE_CATALOG_MODE: ${CORE_CATALOG_MODE:-offline}
+  CORE_MB_USER_AGENT_CONTACT: ${CORE_MB_USER_AGENT_CONTACT:-}
+  CORE_MB_TTL_DAYS: ${CORE_MB_TTL_DAYS:-30}
+
+x-notif-env: &notif-env
+  NOTIF_ENV: ${NOTIF_ENV:-prod}
+  NOTIF_LOG_LEVEL: ${NOTIF_LOG_LEVEL:-INFO}
+  NOTIF_MONGO_URL: ${NOTIF_MONGO_URL:?set NOTIF_MONGO_URL in .env}
+  NOTIF_MONGO_DB: ${NOTIF_MONGO_DB:-notifications}
+  NOTIF_REDIS_AUTH_URL: ${NOTIF_REDIS_AUTH_URL:-redis://redis:6379/0}
+  NOTIF_AMQP_URL: ${NOTIF_AMQP_URL:?set NOTIF_AMQP_URL in .env}
+  NOTIF_JWKS_URL: ${NOTIF_JWKS_URL:-http://identity:8000/.well-known/jwks.json}
+
+x-identity-build: &identity-build
+  context: .
+  dockerfile: services/identity/Dockerfile
+  target: prod
+
+x-core-build: &core-build
+  context: .
+  dockerfile: services/core/Dockerfile
+  target: prod
+
+services:
+  # --- Datastores -----------------------------------------------------------
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: ${IDENTITY_DB_NAME:-identity}
+      POSTGRES_USER: ${IDENTITY_DB_USER:-identity}
+      POSTGRES_PASSWORD: ${IDENTITY_DB_PASSWORD:?set IDENTITY_DB_PASSWORD in .env}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    networks: [backend]
+    healthcheck:
+      # -h 127.0.0.1: only the final server listens on TCP, not the init-time one.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${CORE_DB_NAME:-innotter_core}
+      MYSQL_USER: ${CORE_DB_USER:-innotter_core}
+      MYSQL_PASSWORD: ${CORE_DB_PASSWORD:?set CORE_DB_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${CORE_DB_ROOT_PASSWORD:?set CORE_DB_ROOT_PASSWORD in .env}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 3s
+      timeout: 3s
+      retries: 60
+      start_period: 10s
+
+  mongo:
+    image: mongo:8.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${NOTIF_MONGO_ROOT_USER:-notif}
+      MONGO_INITDB_ROOT_PASSWORD: ${NOTIF_MONGO_ROOT_PASSWORD:?set NOTIF_MONGO_ROOT_PASSWORD in .env}
+    volumes:
+      - mongo-data:/data/db
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${BROKER_USER:-innotter}
+      RABBITMQ_DEFAULT_PASS: ${BROKER_PASSWORD:?set BROKER_PASSWORD in .env}
+    volumes:
+      - rabbit-data:/var/lib/rabbitmq
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 15s
+
+  # --- One-off jobs ---------------------------------------------------------
+  migrate-identity:
+    build: *identity-build
+    command: ["alembic", "upgrade", "head"]
+    environment: *identity-env
+    networks: [backend]
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  migrate-core:
+    build: *core-build
+    command: ["python", "manage.py", "migrate", "--noinput"]
+    environment: *core-env
+    networks: [backend]
+    depends_on:
+      mysql: { condition: service_healthy }
+    restart: "no"
+
+  seed:
+    build: *identity-build
+    command: ["python", "-m", "identity.cli", "bootstrap-admin"]
+    environment: *identity-env
+    volumes:
+      - identity-keys:/var/lib/identity/keys
+    networks: [backend]
+    depends_on:
+      migrate-identity: { condition: service_completed_successfully }
+      # The consumer declares core.identity-events; events published before that are lost.
+      core-consumer: { condition: service_healthy }
+    restart: "no"
+
+  # --- Services -------------------------------------------------------------
+  identity:
+    build: *identity-build
+    environment: *identity-env
+    volumes:
+      - identity-keys:/var/lib/identity/keys
+      - identity-avatars:/var/lib/identity/avatars
+    networks: [edge, backend]
+    healthcheck: *python-healthcheck
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      migrate-identity: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  core-api:
+    build: *core-build
+    environment: *core-env
+    networks: [edge, backend]
+    healthcheck: *python-healthcheck
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      migrate-core: { condition: service_completed_successfully }
+      identity: { condition: service_healthy }
+    restart: unless-stopped
+
+  core-consumer:
+    build: *core-build
+    command: ["python", "manage.py", "consume_events"]
+    environment: *core-env
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/core-consumer.heartbeat && test $$(( $$(date +%s) - $$(stat -c %Y /tmp/core-consumer.heartbeat) )) -lt 60"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 5s
+    depends_on:
+      mysql: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      migrate-core: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  notification:
+    build:
+      context: .
+      dockerfile: services/notification/Dockerfile
+      target: prod
+    environment: *notif-env
+    networks: [edge, backend]
+    healthcheck: *python-healthcheck
+    depends_on:
+      mongo: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    ports:
+      - "${GW_HTTP_PORT:-8080}:80"
+    volumes:
+      - identity-avatars:/srv/avatars:ro
+    networks: [edge]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      identity: { condition: service_healthy }
+      core-api: { condition: service_healthy }
+      notification: { condition: service_started }
+    restart: unless-stopped
+
+  # --- Test runners (profile "test"; real databases, NFR-023) ---------------
+  identity-tests:
+    profiles: [test]
+    build:
+      <<: *identity-build
+      target: dev
+    command: ["pytest", "-q"]
+    environment:
+      <<: *identity-env
+      IDENTITY_ENV: test
+      IDENTITY_DB_NAME: ${IDENTITY_DB_NAME:-identity}_test
+      IDENTITY_REDIS_AUTH_URL: redis://redis:6379/14
+      IDENTITY_REDIS_THROTTLE_URL: redis://redis:6379/13
+      IDENTITY_KEYS_DIR: /tmp/identity-test-keys
+      IDENTITY_OUTBOX_RELAY_ENABLED: "false"
+      IDENTITY_ARGON2_TIME_COST: "1"
+      IDENTITY_ARGON2_MEMORY_COST_KIB: "1024"
+      IDENTITY_ARGON2_PARALLELISM: "1"
+      IDENTITY_REGISTER_MAX_PER_HOUR: "100000"
+    networks: [backend]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  core-tests:
+    profiles: [test]
+    build:
+      <<: *core-build
+      target: dev
+    command: ["pytest", "-q"]
+    environment:
+      <<: *core-env
+      DJANGO_SETTINGS_MODULE: innotter_core.config.settings.test
+      CORE_ENV: test
+      # pytest-django creates/drops test_<db>; root has the rights to do that.
+      CORE_DB_USER: root
+      CORE_DB_PASSWORD: ${CORE_DB_ROOT_PASSWORD:?set CORE_DB_ROOT_PASSWORD in .env}
+      CORE_REDIS_AUTH_URL: redis://redis:6379/15
+    networks: [backend]
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+networks:
+  edge: {}
+  backend:
+    internal: true
+
+volumes:
+  pg-data:
+  mysql-data:
+  mongo-data:
+  redis-data:
+  rabbit-data:
+  identity-keys:
+  identity-avatars:

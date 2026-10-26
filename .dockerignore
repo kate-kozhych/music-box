@@ -1,0 +1,22 @@
+# Build context is the repo root (services need packages/innotter-common).
+.git
+.github
+.idea
+.vscode
+.env
+.env.*
+!.env.example
+docs
+e2e
+load
+frontend/node_modules
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.coverage
+**/htmlcov
+**/.DS_Store
