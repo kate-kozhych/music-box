@@ -1,0 +1,6 @@
+dist
+coverage
+storybook-static
+node_modules
+package-lock.json
+src/api/generated

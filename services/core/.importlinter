@@ -1,0 +1,24 @@
+# Import contracts for Innotter Core (NFR-029, implementation-plan §3.4).
+# Run: poetry run lint-imports
+# Layers derived from the app graph in architecture.md §3
+# (docs/diagrams/02-backend-modules.mmd). A higher layer may import a lower one,
+# never the reverse; apps on the same line must not import each other.
+# Consequence: content apps can never import `feed` (ADR-0007).
+# The rule "apps import other apps only via services/selectors" is added in
+# B-04 once those modules exist.
+
+[importlinter]
+root_package = innotter_core
+
+[importlinter:contract:apps]
+name = Core apps follow the documented dependency graph
+type = layers
+containers =
+    innotter_core.apps
+layers =
+    profiles | feed | moderation
+    interactions
+    reviews | diary | posts | social
+    ratings
+    catalog | users
+    platform

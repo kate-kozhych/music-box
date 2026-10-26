@@ -1,0 +1,21 @@
+# Import contracts for the Identity Service (NFR-029, implementation-plan §3.4).
+# Run: poetry run lint-imports
+# Slice dependencies follow architecture.md §3:
+#   administration -> accounts, sessions;  avatars -> accounts;
+#   sessions -> accounts, kernel;  accounts -> kernel;  kernel -> (no slice).
+# Layer-inside-slice rules (model <- commands/handlers <- adapters, "nothing
+# imports http") are added in B-04/B-05, once those modules exist.
+
+[importlinter]
+root_package = identity
+
+[importlinter:contract:slices]
+name = Identity slices depend only downwards (kernel imports no slice)
+type = layers
+containers =
+    identity
+layers =
+    administration | avatars
+    sessions
+    accounts
+    kernel

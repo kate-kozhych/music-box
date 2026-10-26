@@ -1,0 +1,64 @@
+[project]
+name = "innotter-core"
+version = "0.1.0"
+description = "Innotter 2.0 Core Service: music catalog, ratings, reviews, diary, posts, interactions, follows, feed, moderation."
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "innotter-common[django]",
+    "django>=5.2,<5.3",                # LTS until April 2028
+    "djangorestframework>=3.16,<3.17",
+    "drf-spectacular>=0.28",
+    "pydantic-settings>=2.9,<3",       # typed, fail-fast settings (same tool as the FastAPI services)
+    "mysqlclient>=2.2,<3",
+    "celery[redis]>=5.5,<6",
+    "redis>=5.2,<7",
+    "httpx>=0.28,<0.29",               # MusicBrainz adapter, JWKS
+    "pika>=1.3,<2",                    # identity-events consumer (management command)
+    "gunicorn>=23.0,<24",
+]
+
+[build-system]
+requires = ["poetry-core>=2.0,<3"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+packages = [{ include = "innotter_core", from = "src" }]
+
+[tool.poetry.dependencies]
+innotter-common = { path = "../../packages/innotter-common", develop = true }
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3"
+pytest-django = "^4.10"
+pytest-cov = "^6.0"
+respx = ">=0.22"
+factory-boy = "^3.3"
+ruff = ">=0.11"
+mypy = "^1.15"
+django-stubs = { version = ">=5.2,<5.3", extras = ["compatible-mypy"] }
+djangorestframework-stubs = ">=3.16,<3.17"
+celery-types = ">=0.23"
+import-linter = ">=2.1,<3"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+DJANGO_SETTINGS_MODULE = "innotter_core.config.settings.test"
+markers = [
+    "integration: needs real MySQL/Redis/RabbitMQ (Compose test services)",
+    "api: HTTP-level tests through DRF",
+    "contracts: event contract tests (B-48)",
+]
+
+[tool.coverage.run]
+source = ["innotter_core"]
+branch = true
+omit = ["*/migrations/*"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+mypy_path = "src"
+packages = ["innotter_core"]
+# The django-stubs / drf-stubs mypy plugins need a settings module; they are
+# enabled in B-04 together with config/settings/.

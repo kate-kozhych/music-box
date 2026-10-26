@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.sh text eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+# Lockfiles: keep in diffs but don't let Git try to merge them line by line.
+poetry.lock -diff merge=binary linguist-generated=true
+package-lock.json -diff merge=binary linguist-generated=true
+contracts/openapi/*.json linguist-generated=true

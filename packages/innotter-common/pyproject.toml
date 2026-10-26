@@ -1,0 +1,49 @@
+[project]
+name = "innotter-common"
+version = "0.1.0"
+description = "Innotter 2.0 shared library: auth verification, event envelope, problem details, cursor pagination, logging. No models, no business rules."
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "pydantic>=2.11,<3",
+    "pyjwt[crypto]>=2.10,<3",
+    "httpx>=0.28,<0.29",
+    "redis>=5.2,<7",
+]
+
+[project.optional-dependencies]
+# Thin framework adapters (adapters/django.py, adapters/fastapi.py). Each service
+# installs only the extra it needs, so containers stay small.
+django = ["django>=5.2,<5.3", "djangorestframework>=3.16,<3.17"]
+fastapi = ["fastapi>=0.115,<1"]
+
+[build-system]
+requires = ["poetry-core>=2.0,<3"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+packages = [{ include = "innotter_common", from = "src" }]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3"
+pytest-asyncio = ">=0.25"
+pytest-cov = "^6.0"
+respx = ">=0.22"
+ruff = ">=0.11"
+mypy = "^1.15"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.coverage.run]
+source = ["innotter_common"]
+branch = true
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+mypy_path = "src"
+packages = ["innotter_common"]
+plugins = ["pydantic.mypy"]

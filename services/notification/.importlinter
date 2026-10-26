@@ -1,0 +1,16 @@
+# Import contracts for the Notification Service (NFR-029).
+# Run: poetry run lint-imports
+# inbox (consumer) -> notifications, snapshots; channels are leaf adapters.
+
+[importlinter]
+root_package = notifier
+
+[importlinter:contract:modules]
+name = Consumer depends on rules and snapshots, never the reverse
+type = layers
+containers =
+    notifier
+layers =
+    inbox
+    notifications | snapshots
+    channels
