@@ -113,9 +113,10 @@ async def register_endpoint(
     )
     async with container.uow() as uow:
         signed_in = await register_and_sign_in(cmd, uow, container.hasher, container.session_deps)
+        user = AccountOut.of(signed_in.account)
     _set_refresh_cookie(response, signed_in.tokens, container)
     return AuthResponse(
-        user=AccountOut.of(signed_in.account),
+        user=user,
         access_token=signed_in.tokens.access_token,
         expires_in=signed_in.tokens.expires_in,
     )
@@ -128,9 +129,10 @@ async def login_endpoint(
     cmd = Login(identifier=body.identifier, password=body.password, client_ip=client_ip(request))
     async with container.uow() as uow:
         signed_in = await login(cmd, uow, container.hasher, container.throttle, container.session_deps)
+        user = AccountOut.of(signed_in.account)
     _set_refresh_cookie(response, signed_in.tokens, container)
     return AuthResponse(
-        user=AccountOut.of(signed_in.account),
+        user=user,
         access_token=signed_in.tokens.access_token,
         expires_in=signed_in.tokens.expires_in,
     )
