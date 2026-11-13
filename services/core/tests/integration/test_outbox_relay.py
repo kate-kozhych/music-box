@@ -71,7 +71,7 @@ def test_publishes_pending_events_and_marks_them_published(channel: FakeChannel)
     assert message["exchange"] == EXCHANGE
     assert message["routing_key"] == FOLLOW_CREATED
     assert message["mandatory"] is True
-    assert message["properties"].delivery_mode == pika.DeliveryMode.Persistent
+    assert message["properties"].delivery_mode == pika.DeliveryMode.Persistent.value
     assert message["properties"].message_id == str(row.event_id)
     assert message["properties"].content_type == "application/json"
 
