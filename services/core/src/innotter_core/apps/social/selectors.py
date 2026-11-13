@@ -36,7 +36,11 @@ def count_following(user: UserProfile, viewer: Principal | None) -> int:
 
 
 def _visible(qs: QuerySet[Follow], side: str, viewer: Principal | None) -> QuerySet[Follow]:
-    statuses = [UserStatus.ACTIVE, UserStatus.BLOCKED] if viewer and viewer.is_admin else [UserStatus.ACTIVE]
+    statuses = (
+        [UserStatus.ACTIVE, UserStatus.BLOCKED]
+        if viewer and viewer.is_admin
+        else [UserStatus.ACTIVE]
+    )
     return qs.filter(**{f"{side}__status__in": statuses})
 
 

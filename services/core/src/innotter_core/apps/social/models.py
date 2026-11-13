@@ -8,8 +8,12 @@ from innotter_core.apps.users.models import UserProfile
 
 class Follow(models.Model):
     pk = models.CompositePrimaryKey("follower_id", "followee_id")
-    follower = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name="following_edges")
-    followee = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name="follower_edges")
+    follower = models.ForeignKey(
+        UserProfile, on_delete=models.CASCADE, related_name="following_edges"
+    )
+    followee = models.ForeignKey(
+        UserProfile, on_delete=models.CASCADE, related_name="follower_edges"
+    )
     created_at = models.DateTimeField()
 
     class Meta:

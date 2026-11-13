@@ -42,7 +42,12 @@ def test_registered_then_updated_then_blocked_then_deleted() -> None:
     process_event(
         _event(
             USER_PROFILE_UPDATED,
-            {"user_id": str(user_id), "display_name": "Ann B.", "bio": "jazz", "profile_version": 3},
+            {
+                "user_id": str(user_id),
+                "display_name": "Ann B.",
+                "bio": "jazz",
+                "profile_version": 3,
+            },
         ),
         HANDLERS,
     )
@@ -59,14 +64,20 @@ def test_registered_then_updated_then_blocked_then_deleted() -> None:
     process_event(
         _event(
             USER_STATUS_CHANGED,
-            {"user_id": str(user_id), "status": "blocked", "changed_at": datetime.now(UTC).isoformat()},
+            {
+                "user_id": str(user_id),
+                "status": "blocked",
+                "changed_at": datetime.now(UTC).isoformat(),
+            },
         ),
         HANDLERS,
     )
     assert UserProfile.objects.get(user_id=user_id).status == "blocked"
 
     process_event(
-        _event(USER_DELETED, {"user_id": str(user_id), "deleted_at": datetime.now(UTC).isoformat()}),
+        _event(
+            USER_DELETED, {"user_id": str(user_id), "deleted_at": datetime.now(UTC).isoformat()}
+        ),
         HANDLERS,
     )
     profile = UserProfile.objects.get(user_id=user_id)

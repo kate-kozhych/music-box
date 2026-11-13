@@ -44,7 +44,11 @@ DATABASES = {
             "init_command": "SET sql_mode='STRICT_TRANS_TABLES', time_zone='+00:00'",
             "isolation_level": "read committed",
         },
-        "TEST": {"NAME": f"test_{ENV.db_name}", "CHARSET": "utf8mb4", "COLLATION": "utf8mb4_0900_ai_ci"},
+        "TEST": {
+            "NAME": f"test_{ENV.db_name}",
+            "CHARSET": "utf8mb4",
+            "COLLATION": "utf8mb4_0900_ai_ci",
+        },
     }
 }
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -75,6 +79,22 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "SCHEMA_PATH_PREFIX": "/api/v1",
     "COMPONENT_SPLIT_REQUEST": True,
+}
+
+# --- Celery (outbox relay, ADR-0004 §4) --------------------------------------
+CELERY_BROKER_URL = ENV.celery_broker_url
+CELERY_TASK_DEFAULT_QUEUE = "core"
+CELERY_TASK_IGNORE_RESULT = True
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_TIMEZONE = "UTC"
+CELERY_BEAT_SCHEDULE = {
+    "publish-outbox": {
+        "task": "platform.publish_outbox",
+        "schedule": ENV.outbox_sweep_seconds,
+        "options": {"expires": ENV.outbox_sweep_seconds},
+    }
 }
 
 INNOTTER_JWKS_URL = ENV.jwks_url

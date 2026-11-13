@@ -28,7 +28,9 @@ def test_follow_is_idempotent_and_emits_one_event(
     assert APIClient().get("/api/v1/users/ben").json()["counts"]["followers"] == 1
 
 
-def test_unfollow_is_idempotent(api: APIClient, make_user: ProfileFactory, make_token: TokenFactory) -> None:
+def test_unfollow_is_idempotent(
+    api: APIClient, make_user: ProfileFactory, make_token: TokenFactory
+) -> None:
     ann, _ = make_user("ann"), make_user("ben")
     client = auth(api, make_token(ann))
     client.put("/api/v1/users/ben/follow")
@@ -47,7 +49,9 @@ def test_guest_cannot_follow(api: APIClient, make_user: ProfileFactory) -> None:
     assert response.json()["code"] == "token_invalid"
 
 
-def test_self_follow_is_rejected(api: APIClient, make_user: ProfileFactory, make_token: TokenFactory) -> None:
+def test_self_follow_is_rejected(
+    api: APIClient, make_user: ProfileFactory, make_token: TokenFactory
+) -> None:
     ann = make_user("ann")
 
     response = auth(api, make_token(ann)).put("/api/v1/users/ann/follow")
@@ -68,7 +72,9 @@ def test_cannot_follow_blocked_or_deleted(
     assert response.status_code == 404
 
 
-def test_follow_unknown_user_is_404(api: APIClient, make_user: ProfileFactory, make_token: TokenFactory) -> None:
+def test_follow_unknown_user_is_404(
+    api: APIClient, make_user: ProfileFactory, make_token: TokenFactory
+) -> None:
     ann = make_user("ann")
 
     assert auth(api, make_token(ann)).put("/api/v1/users/nobody/follow").status_code == 404
@@ -98,7 +104,9 @@ def test_blocked_account_token_is_rejected(
     api: APIClient, make_user: ProfileFactory, make_token: TokenFactory, auth_redis
 ) -> None:
     ann, _ = make_user("ann"), make_user("ben")
-    auth_redis.hset(user_state_key(ann.user_id), mapping={"status": "blocked", "revoked_before": "0"})
+    auth_redis.hset(
+        user_state_key(ann.user_id), mapping={"status": "blocked", "revoked_before": "0"}
+    )
 
     assert auth(api, make_token(ann)).put("/api/v1/users/ben/follow").status_code == 401
 
@@ -122,7 +130,9 @@ def test_lists_are_newest_first_with_cursor_pagination(
     assert [e["user"]["username"] for e in following["items"]] == [star.username]
 
 
-def test_viewer_follows_flag(api: APIClient, make_user: ProfileFactory, make_token: TokenFactory) -> None:
+def test_viewer_follows_flag(
+    api: APIClient, make_user: ProfileFactory, make_token: TokenFactory
+) -> None:
     ann, ben, cat = make_user("ann"), make_user("ben"), make_user("cat")
     auth(APIClient(), make_token(ben)).put("/api/v1/users/cat/follow")
     auth(APIClient(), make_token(cat)).put("/api/v1/users/cat/follow")
@@ -141,7 +151,11 @@ def test_blocked_users_are_hidden_from_lists_except_for_admins(
     UserProfile.objects.filter(pk=bad.pk).update(status="blocked")
 
     guest_view = api.get("/api/v1/users/star/followers").json()["items"]
-    admin_view = auth(api, make_token(root, role="ADMIN")).get("/api/v1/users/star/followers").json()["items"]
+    admin_view = (
+        auth(api, make_token(root, role="ADMIN"))
+        .get("/api/v1/users/star/followers")
+        .json()["items"]
+    )
 
     assert guest_view == []
     assert [e["user"]["username"] for e in admin_view] == ["bad"]

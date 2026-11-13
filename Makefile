@@ -69,7 +69,7 @@ test-common: ## pytest for innotter-common (no infrastructure needed)
 	cd $(PY_LIB) && poetry run pytest
 
 .PHONY: test-docker
-test-docker: test-identity test-core ## Service tests against real PostgreSQL/MySQL/Redis in Compose
+test-docker: test-identity test-core test-notification ## Service tests against real PostgreSQL/MySQL/MongoDB/Redis in Compose
 
 .PHONY: test-identity
 test-identity: ## Identity API + integration tests (PostgreSQL 17, Redis)
@@ -78,6 +78,10 @@ test-identity: ## Identity API + integration tests (PostgreSQL 17, Redis)
 .PHONY: test-core
 test-core: ## Core API + integration tests (MySQL 8.4, Redis)
 	$(COMPOSE) --profile test run --rm --build core-tests
+
+.PHONY: test-notification
+test-notification: ## Notification API + consumer tests (MongoDB 8, RabbitMQ, Redis)
+	$(COMPOSE) --profile test run --rm --build notification-tests
 
 .PHONY: smoke
 smoke: ## End-to-end smoke test through the gateway (stack must be up)

@@ -5,9 +5,8 @@ from django.utils import timezone
 
 from innotter_common.auth import Principal
 from innotter_common.errors import not_found
-from innotter_common.events import FOLLOW_CREATED, FollowCreatedV1, new_envelope
-from innotter_common.logging import request_id_var
-from innotter_core.apps.platform.models import OutboxEvent
+from innotter_common.events import FOLLOW_CREATED, FollowCreatedV1
+from innotter_core.apps.platform.outbox import record_event
 from innotter_core.apps.social.models import Follow
 from innotter_core.apps.social.policies import ensure_can_follow
 from innotter_core.apps.users.models import UserProfile
@@ -31,18 +30,9 @@ def follow(principal: Principal, username: str) -> bool:
                 follower=actor, followee=target, defaults={"created_at": timezone.now()}
             )
             if created:
-                envelope = new_envelope(
+                record_event(
                     FOLLOW_CREATED,
-                    "core",
                     FollowCreatedV1(follower_id=actor.user_id, followee_id=target.user_id),
-                    request_id_var.get(),
-                )
-                OutboxEvent.objects.create(
-                    event_id=envelope.event_id,
-                    type=envelope.type,
-                    payload=envelope.payload,
-                    correlation_id=envelope.correlation_id,
-                    occurred_at=envelope.occurred_at,
                 )
     except IntegrityError:
         return False
