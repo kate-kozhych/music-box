@@ -44,7 +44,9 @@ def test_blocked_user_hidden_except_for_admins(
     assert response.json()["status"] == "blocked"
 
 
-def test_own_profile_marks_is_self(api: APIClient, make_user: ProfileFactory, make_token: TokenFactory) -> None:
+def test_own_profile_marks_is_self(
+    api: APIClient, make_user: ProfileFactory, make_token: TokenFactory
+) -> None:
     me = make_user("cat")
 
     response = auth(api, make_token(me)).get("/api/v1/users/cat")
@@ -52,7 +54,9 @@ def test_own_profile_marks_is_self(api: APIClient, make_user: ProfileFactory, ma
     assert response.json()["viewer"] == {"is_self": True, "follows": None}
 
 
-def test_invalid_token_is_401_even_on_public_reads(api: APIClient, make_user: ProfileFactory) -> None:
+def test_invalid_token_is_401_even_on_public_reads(
+    api: APIClient, make_user: ProfileFactory
+) -> None:
     make_user("dora")
 
     response = auth(api, "not-a-jwt").get("/api/v1/users/dora")

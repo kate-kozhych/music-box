@@ -67,7 +67,9 @@ def apply_profile_updated(event: UserProfileUpdatedV1) -> None:
         profile.bio = event.bio
         profile.avatar_url = event.avatar_url
         profile.profile_version = event.profile_version
-        profile.save(update_fields=["display_name", "bio", "avatar_url", "profile_version", "updated_at"])
+        profile.save(
+            update_fields=["display_name", "bio", "avatar_url", "profile_version", "updated_at"]
+        )
 
 
 def apply_status_changed(event: UserStatusChangedV1) -> None:

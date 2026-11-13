@@ -18,7 +18,9 @@ QUEUE = QueueSpec(name="core.identity-events", bindings=("identity.user.#",))
 
 
 def _registered(envelope: Envelope) -> None:
-    services.apply_registered(UserRegisteredV1.model_validate(envelope.payload), envelope.occurred_at)
+    services.apply_registered(
+        UserRegisteredV1.model_validate(envelope.payload), envelope.occurred_at
+    )
 
 
 def _profile_updated(envelope: Envelope) -> None:

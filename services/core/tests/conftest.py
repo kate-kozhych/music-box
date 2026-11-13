@@ -31,9 +31,7 @@ def _verifier(monkeypatch: pytest.MonkeyPatch, signing_key: Ed25519PrivateKey) -
     verifier = TokenVerifier(
         StaticKeyProvider({KID: signing_key.public_key()}), issuer=ISSUER, audience=AUDIENCE
     )
-    monkeypatch.setattr(
-        "innotter_core.apps.platform.authentication.get_verifier", lambda: verifier
-    )
+    monkeypatch.setattr("innotter_core.apps.platform.authentication.get_verifier", lambda: verifier)
 
 
 @pytest.fixture(autouse=True)

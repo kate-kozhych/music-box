@@ -48,7 +48,9 @@ def declare_topology(channel: Any, spec: QueueSpec) -> None:
     )
     for pattern in spec.bindings:
         channel.queue_bind(spec.name, EXCHANGE, routing_key=pattern)
-    channel.queue_declare(spec.dead_letter_queue, durable=True, arguments={"x-queue-type": "quorum"})
+    channel.queue_declare(
+        spec.dead_letter_queue, durable=True, arguments={"x-queue-type": "quorum"}
+    )
     channel.queue_bind(spec.dead_letter_queue, DEAD_LETTER_EXCHANGE, routing_key=spec.name)
 
 
