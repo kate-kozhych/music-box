@@ -45,6 +45,13 @@ services:
       - ./services/core/src:/app/services/core/src
       - ./packages/innotter-common/src:/app/packages/innotter-common/src
 
+  core-worker:
+    build:
+      target: dev
+    volumes:
+      - ./services/core/src:/app/services/core/src
+      - ./packages/innotter-common/src:/app/packages/innotter-common/src
+
   notification:
     build:
       target: dev

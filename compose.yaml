@@ -4,10 +4,11 @@
 #   docker compose up --build            # prod targets, offline catalog
 #   docker compose --profile test run --rm identity-tests
 #   docker compose --profile test run --rm core-tests
+#   docker compose --profile test run --rm notification-tests
 #
 # Only the gateway publishes a host port (http://localhost:8080).
-# Not in this iteration: core-worker (Celery outbox relay, B-48) and the
-# notification consumer (B-51).
+# The Notification consumers run inside the notification service process
+# (asyncio tasks in the FastAPI lifespan), so /health/ready reports them.
 
 name: ${COMPOSE_PROJECT_NAME:-innotter}
 
@@ -75,6 +76,14 @@ x-notif-env: &notif-env
   NOTIF_REDIS_AUTH_URL: ${NOTIF_REDIS_AUTH_URL:-redis://redis:6379/0}
   NOTIF_AMQP_URL: ${NOTIF_AMQP_URL:?set NOTIF_AMQP_URL in .env}
   NOTIF_JWKS_URL: ${NOTIF_JWKS_URL:-http://identity:8000/.well-known/jwks.json}
+  NOTIF_JWT_ISSUER: ${IDENTITY_JWT_ISSUER:-innotter-identity}
+  NOTIF_JWT_AUDIENCE: ${IDENTITY_JWT_AUDIENCE:-innotter}
+  NOTIF_CONSUMERS_ENABLED: ${NOTIF_CONSUMERS_ENABLED:-true}
+
+x-notif-build: &notif-build
+  context: .
+  dockerfile: services/notification/Dockerfile
+  target: prod
 
 x-identity-build: &identity-build
   context: .
@@ -192,8 +201,9 @@ services:
     networks: [backend]
     depends_on:
       migrate-identity: { condition: service_completed_successfully }
-      # The consumer declares core.identity-events; events published before that are lost.
+      # Consumers declare their queues; events published before that are lost.
       core-consumer: { condition: service_healthy }
+      notification: { condition: service_healthy }
     restart: "no"
 
   # --- Services -------------------------------------------------------------
@@ -241,17 +251,39 @@ services:
       migrate-core: { condition: service_completed_successfully }
     restart: unless-stopped
 
+  # Celery worker with embedded beat (architecture.md §5): the beat sweep is the
+  # safety net behind the on-commit relay trigger.
+  core-worker:
+    build: *core-build
+    command:
+      ["celery", "-A", "innotter_core.config.celery", "worker", "--beat", "--loglevel=INFO",
+       "--concurrency=2", "--queues=core", "--without-gossip", "--without-mingle"]
+    environment: *core-env
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "celery", "-A", "innotter_core.config.celery", "inspect", "ping",
+             "--destination", "celery@$$HOSTNAME", "--timeout", "10"]
+      interval: 15s
+      timeout: 15s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      migrate-core: { condition: service_completed_successfully }
+    restart: unless-stopped
+
   notification:
-    build:
-      context: .
-      dockerfile: services/notification/Dockerfile
-      target: prod
+    build: *notif-build
     environment: *notif-env
     networks: [edge, backend]
     healthcheck: *python-healthcheck
     depends_on:
       mongo: { condition: service_healthy }
       redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      identity: { condition: service_healthy }
     restart: unless-stopped
 
   gateway:
@@ -316,6 +348,25 @@ services:
     depends_on:
       mysql: { condition: service_healthy }
       redis: { condition: service_healthy }
+
+  notification-tests:
+    profiles: [test]
+    build:
+      <<: *notif-build
+      target: dev
+    command: ["pytest", "-q"]
+    environment:
+      <<: *notif-env
+      NOTIF_ENV: test
+      NOTIF_MONGO_DB: ${NOTIF_MONGO_DB:-notifications}_test
+      NOTIF_REDIS_AUTH_URL: redis://redis:6379/12
+      # The tests drive the consumer explicitly instead of racing the lifespan one.
+      NOTIF_CONSUMERS_ENABLED: "false"
+    networks: [backend]
+    depends_on:
+      mongo: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
 
 networks:
   edge: {}
