@@ -122,7 +122,6 @@ def main() -> int:
     status, body = call("GET", f"/api/v1/users/{bob}")
     step("bob has 0 followers again", body["counts"]["followers"] == 0, body)
 
-    # DR-42: refollowing must not produce a second FOLLOW notification.
     status, body = call("PUT", f"/api/v1/users/{bob}/follow", token=token)
     step("refollow after unfollow -> 204", status == 204, body)
 
@@ -135,7 +134,6 @@ def main() -> int:
     status, body = call("GET", "/api/v1/account", token=new_token)
     step("access token rejected after logout -> 401", status == 401, body)
 
-    # --- The vertical slice: follow -> outbox -> RabbitMQ -> notification -----
     status, body = call("GET", "/api/v1/notifications")
     step("guest notifications -> 401", status == 401, body)
 
