@@ -81,7 +81,6 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
 }
 
-# --- Celery (outbox relay, ADR-0004 §4) --------------------------------------
 CELERY_BROKER_URL = ENV.celery_broker_url
 CELERY_TASK_DEFAULT_QUEUE = "core"
 CELERY_TASK_IGNORE_RESULT = True

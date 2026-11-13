@@ -22,7 +22,6 @@ PUBLISH_OUTBOX = "platform.publish_outbox"
     retry_kwargs={"max_retries": 5},
 )
 def publish_outbox() -> int:
-    """Drain the outbox in bounded batches (on-commit trigger and the beat sweep)."""
     total = 0
     for _ in range(MAX_BATCHES_PER_RUN):
         published = publish_pending()

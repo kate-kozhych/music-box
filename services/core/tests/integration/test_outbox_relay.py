@@ -1,10 +1,3 @@
-"""Core outbox relay (B-48, ADR-0004 §4, NFR-079).
-
-The datastore is real MySQL; the broker is a fake confirming channel so publish
-failures can be injected — a row may never be marked published unless its message
-was actually accepted.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -24,8 +17,6 @@ pytestmark = pytest.mark.django_db(transaction=True)
 
 
 class FakeChannel:
-    """Stands in for a pika channel with publisher confirms enabled."""
-
     def __init__(self, *, fail_on: int | None = None) -> None:
         self.published: list[dict[str, Any]] = []
         self.is_open = True
@@ -113,9 +104,8 @@ def test_events_are_published_in_occurrence_order(channel: FakeChannel) -> None:
 def test_an_unroutable_message_leaves_every_row_unpublished(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A failed publish must roll the batch back, so no event is silently lost."""
     rows = [add_event(), add_event()]
-    fake = FakeChannel(fail_on=1)  # the second publish is rejected
+    fake = FakeChannel(fail_on=1)
     monkeypatch.setattr(relay, "_confirming_channel", lambda: fake)
     reset_calls: list[bool] = []
     monkeypatch.setattr(relay, "reset_connection", lambda: reset_calls.append(True))
@@ -128,7 +118,6 @@ def test_an_unroutable_message_leaves_every_row_unpublished(
         assert row.published_at is None
     assert reset_calls == [True]
 
-    # A later run republishes them (at-least-once; consumers deduplicate).
     healthy = FakeChannel()
     monkeypatch.setattr(relay, "_confirming_channel", lambda: healthy)
     assert relay.publish_pending() == 2
@@ -159,7 +148,6 @@ def test_record_event_writes_the_row_and_schedules_the_relay(
 
 
 def test_scheduling_failure_does_not_break_the_write(monkeypatch: pytest.MonkeyPatch) -> None:
-    """If the broker-backed queue is down, the row still lands; the sweep publishes it."""
 
     def explode() -> None:
         raise ConnectionError("celery broker unavailable")

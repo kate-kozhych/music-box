@@ -34,4 +34,4 @@ class CoreEnv(BaseSettings):
     mb_ttl_days: int = Field(30, ge=1)
 
     consumer_heartbeat_file: str = "/tmp/core-consumer.heartbeat"  # noqa: S108
-    outbox_sweep_seconds: float = Field(5.0, gt=0)  # ADR-0004: beat sweep every 5 s
+    outbox_sweep_seconds: float = Field(5.0, gt=0)

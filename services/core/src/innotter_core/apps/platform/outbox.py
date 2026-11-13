@@ -18,12 +18,11 @@ def _enqueue_relay() -> None:
 
     try:
         publish_outbox.delay()
-    except Exception:  # the beat sweep still picks the row up
+    except Exception:
         log.warning("Could not schedule the outbox relay; the sweep will publish", exc_info=True)
 
 
 def record_event(event_type: str, payload: BaseModel) -> OutboxEvent:
-    """Write an event in the caller's transaction and relay it right after the commit."""
     envelope = new_envelope(event_type, PRODUCER, payload, request_id_var.get())
     row = OutboxEvent.objects.create(
         event_id=envelope.event_id,

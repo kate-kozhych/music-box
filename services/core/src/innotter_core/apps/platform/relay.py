@@ -53,7 +53,6 @@ def reset_connection() -> None:
 
 
 def _confirming_channel() -> Any:
-    """A channel with publisher confirms; unroutable messages come back as errors."""
     global _connection
     if _connection is None or _connection.is_closed:
         _connection = _connect()
@@ -64,12 +63,6 @@ def _confirming_channel() -> Any:
 
 
 def publish_pending(batch_size: int = BATCH_SIZE) -> int:
-    """Publish one batch of unpublished events and mark exactly those rows published.
-
-    The rows are locked with SKIP LOCKED, so concurrent relays take disjoint batches.
-    A publish failure (including an unroutable message) raises, the transaction rolls
-    back and the rows stay unpublished — never the other way round.
-    """
     channel = _confirming_channel()
     try:
         with transaction.atomic():
