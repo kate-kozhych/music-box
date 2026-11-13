@@ -60,5 +60,11 @@ python_version = "3.13"
 strict = true
 mypy_path = "src"
 packages = ["innotter_core"]
+
+[[tool.mypy.overrides]]
+module = ["pika", "pika.*"]
+# pika ships no stubs and no py.typed marker; follow it untyped rather than
+# scattering per-import ignores across the messaging modules.
+follow_untyped_imports = true
 # The django-stubs / drf-stubs mypy plugins need a settings module; they are
 # enabled in B-04 together with config/settings/.
