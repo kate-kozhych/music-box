@@ -13,9 +13,7 @@ Database = AsyncDatabase[dict[str, Any]]
 
 
 async def ensure_indexes(db: Database, *, processed_event_ttl_days: int = 30) -> None:
-    """Create every index the service relies on. Idempotent (database-design §4)."""
     notifications = db[NOTIFICATIONS]
-    # DR-42: at most one notification per (recipient, actor, type, target).
     await notifications.create_index([("dedupe_key", ASCENDING)], name="dedupe_key_uk", unique=True)
     await notifications.create_index(
         [("recipient_id", ASCENDING), ("created_at", DESCENDING), ("_id", DESCENDING)],

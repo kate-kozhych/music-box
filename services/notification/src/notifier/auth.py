@@ -13,8 +13,6 @@ BEARER = "bearer"
 
 @dataclass(frozen=True, slots=True)
 class Authenticator:
-    """Shared JWT + Redis authorization (ADR-0005): JWKS signature, then auth state."""
-
     verifier: TokenVerifier
     state: AsyncAuthStateReader
 
@@ -23,7 +21,6 @@ class Authenticator:
         if len(header) != 2 or header[0].lower() != BEARER:
             raise unauthorized(detail="Malformed Authorization header.")
         principal = self.verifier.verify(header[1])
-        # Reads stay available when Redis is down (same rule as Core's safe methods).
         await self.state.ensure_active(principal, fail_open=request.method in {"GET", "HEAD"})
         user_id_var.set(str(principal.user_id))
         return principal

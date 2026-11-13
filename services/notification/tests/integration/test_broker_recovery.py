@@ -25,7 +25,6 @@ class ConsumerStub:
 async def test_consumer_retries_and_shuts_down_gracefully(
     db: Database, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A broker outage must not kill the consumer; stop() must still end it."""
     attempts = 0
 
     async def failing_connect(*_: Any, **__: Any) -> Any:
@@ -76,14 +75,13 @@ async def test_readiness_reflects_the_consumer_state(
 async def test_topology_is_declared_as_durable_quorum_queues_with_a_dlq(
     settings: Settings,
 ) -> None:
-    """Declaring twice must be idempotent and match the documented topology (§6.2)."""
     connection = await aio_pika.connect_robust(settings.amqp_url.get_secret_value())
     async with connection:
         channel = await connection.channel()
         for spec in (IDENTITY_QUEUE, CORE_QUEUE):
             queue = await declare_topology(channel, spec)
             assert queue.name == spec.name
-            await declare_topology(channel, spec)  # idempotent re-declaration
+            await declare_topology(channel, spec)
 
         exchange = await channel.get_exchange(EXCHANGE)
         envelope = Envelope(

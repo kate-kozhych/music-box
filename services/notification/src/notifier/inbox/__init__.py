@@ -1,16 +1,3 @@
-"""RabbitMQ consumers for identity and Core events (B-48, B-51).
-
-Reliability contract (ADR-0004 §4):
-
-* durable topic exchange, one durable **quorum** queue per source with
-  `x-delivery-limit` retries and a `*.dlq` parking queue behind `innotter.dlx`;
-* at-least-once delivery with idempotent handlers, deduplicated by `event_id`;
-* the event is marked processed **after** its Mongo writes, never before, so a
-  crash in between causes a redelivery rather than a lost notification;
-* `connect_robust` plus an outer backoff loop survives a broker restart, and
-  `stop()` lets in-flight messages finish before the process exits.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -89,8 +76,6 @@ async def _deleted(db: Database, envelope: Envelope) -> None:
 
 async def _follow_created(db: Database, envelope: Envelope) -> None:
     payload = FollowCreatedV1.model_validate(envelope.payload)
-    # The actor may be unknown here if Identity's projection has not arrived yet;
-    # the placeholder keeps the join stable and a later snapshot fills the names in.
     await snapshots.ensure_placeholder(db, payload.follower_id)
     created = await notifications.create_follow(db, payload, envelope.event_id)
     log.info(
@@ -132,12 +117,6 @@ async def mark_processed(db: Database, envelope: Envelope) -> None:
 
 
 async def process_event(db: Database, envelope: Envelope, handlers: Mapping[str, Handler]) -> bool:
-    """Handle one event idempotently. False means it had already been processed.
-
-    The handler runs *before* `processed_events` is written. If the process dies in
-    between, the broker redelivers and the handler — an atomic, keyed upsert — simply
-    reaches the same state again (DR-42, NFR-079).
-    """
     if await already_processed(db, envelope.event_id):
         return False
     handler = handlers.get(envelope.type)
@@ -209,9 +188,6 @@ class EventConsumer:
             return
         token = request_id_var.set(envelope.correlation_id)
         try:
-            # requeue=True lets the quorum queue count deliveries and dead-letter
-            # the message once x-delivery-limit is reached, so poison messages
-            # never block the queue.
             async with message.process(requeue=True, ignore_processed=True):
                 handled = await process_event(self._db, envelope, handlers)
             log.info(

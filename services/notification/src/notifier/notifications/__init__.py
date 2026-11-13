@@ -1,13 +1,3 @@
-"""Notification rules and queries (US-036, US-037, DR-40…45).
-
-Creation is a single atomic upsert keyed by `dedupe_key`, so a duplicate delivery,
-a repeated follow and an unfollow-then-refollow all collapse into one notification
-for the same (recipient, actor, type, target) — DR-42.
-
-Actor enrichment deliberately lives above this module: `notifications` and
-`snapshots` are siblings in the import contract and must not depend on each other.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -41,9 +31,8 @@ class Page:
 
 
 async def create_follow(db: Database, event: FollowCreatedV1, source_event_id: uuid.UUID) -> bool:
-    """Create the FOLLOW notification for the followee. True when this call created it."""
     recipient_id, actor_id = str(event.followee_id), str(event.follower_id)
-    if recipient_id == actor_id:  # DR-41; the Core policy already rejects self-follow
+    if recipient_id == actor_id:
         return False
     target = {"type": TARGET_USER, "id": actor_id}
     key = dedupe_key(recipient_id, actor_id, FOLLOW, target)
@@ -85,7 +74,6 @@ def _cursor_filter(cursor: Cursor) -> dict[str, Any]:
 async def list_for_recipient(
     db: Database, recipient_id: uuid.UUID, *, limit: int, cursor: Cursor | None = None
 ) -> Page:
-    """One page of a recipient's notifications, newest first. Never crosses recipients."""
     query: dict[str, Any] = {"recipient_id": str(recipient_id), "hidden": False}
     if cursor is not None:
         query.update(_cursor_filter(cursor))
@@ -107,7 +95,6 @@ async def list_for_recipient(
 
 
 def normalise_created_at(doc: Mapping[str, Any]) -> datetime:
-    """Mongo hands back naive UTC datetimes; the API and cursors need them aware."""
     created_at: datetime = doc["created_at"]
     return created_at if created_at.tzinfo is not None else created_at.replace(tzinfo=UTC)
 

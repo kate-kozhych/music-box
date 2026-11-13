@@ -1,11 +1,3 @@
-"""Version-aware projection of Identity users (B-49).
-
-A snapshot is only ever moved forward: an out-of-order `profile_updated` with an
-older `profile_version` is ignored, because RabbitMQ does not guarantee ordering
-(ADR-0004 §4). Writes are single atomic `update_one` calls, so a redelivery of
-the same event is a no-op.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -32,11 +24,6 @@ STATUS_DELETED = "deleted"
 async def _upsert_if_newer(
     db: Database, user_id: uuid.UUID, version: int, fields: dict[str, Any]
 ) -> bool:
-    """Insert the snapshot, or update it only when `version` is newer than the stored one.
-
-    A newer stored version makes the filter miss and the upsert collide on `_id`;
-    that DuplicateKeyError *is* the "stale event, nothing to do" answer.
-    """
     try:
         result = await db[USER_SNAPSHOTS].update_one(
             {"_id": str(user_id), "profile_version": {"$lt": version}},
@@ -72,7 +59,6 @@ async def apply_profile_updated(db: Database, event: UserProfileUpdatedV1) -> bo
 
 
 async def apply_status_changed(db: Database, event: UserStatusChangedV1) -> bool:
-    """Status has no profile_version, so `changed_at` decides which update wins."""
     result = await db[USER_SNAPSHOTS].update_one(
         {
             "_id": str(event.user_id),
@@ -105,7 +91,6 @@ async def apply_deleted(db: Database, event: UserDeletedV1) -> bool:
 
 
 async def ensure_placeholder(db: Database, user_id: uuid.UUID) -> None:
-    """Record a user we learned about from a Core event before Identity's projection arrived."""
     try:
         await db[USER_SNAPSHOTS].update_one(
             {"_id": str(user_id)},
@@ -127,7 +112,6 @@ async def get_many(
 
 
 def as_actor(user_id: str, snapshot: Mapping[str, Any] | None) -> dict[str, Any]:
-    """Shape an actor for the API, tolerating a snapshot that has not arrived yet."""
     if snapshot is None or not snapshot.get("username"):
         return {"user_id": user_id, "username": None, "display_name": None, "avatar_url": None}
     return {

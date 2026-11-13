@@ -45,16 +45,15 @@ async def test_duplicate_delivery_of_the_same_event_creates_one_notification(db:
     envelope = follow_event(alice, bob)
 
     assert await process_event(db, envelope, CORE_HANDLERS) is True
-    assert await process_event(db, envelope, CORE_HANDLERS) is False  # deduplicated by event_id
+    assert await process_event(db, envelope, CORE_HANDLERS) is False
 
     assert await count_notifications(db, bob) == 1
 
 
 async def test_repeated_follow_and_refollow_create_one_notification(db: Database) -> None:
-    """DR-42: distinct events for the same (recipient, actor, type, target) collapse."""
     alice, bob = uuid.uuid4(), uuid.uuid4()
 
-    for _ in range(3):  # follow, unfollow+refollow, follow again -> three distinct events
+    for _ in range(3):
         assert await process_event(db, follow_event(alice, bob), CORE_HANDLERS) is True
 
     assert await count_notifications(db, bob) == 1
@@ -63,11 +62,6 @@ async def test_repeated_follow_and_refollow_create_one_notification(db: Database
 async def test_crash_between_mongo_writes_does_not_lose_the_notification(
     db: Database, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The notification is written before the event is marked processed.
-
-    A crash in between must leave the notification in place and the event
-    unmarked, so the redelivery is a harmless no-op rather than a loss.
-    """
     alice, bob = uuid.uuid4(), uuid.uuid4()
     envelope = follow_event(alice, bob)
 
@@ -82,8 +76,8 @@ async def test_crash_between_mongo_writes_does_not_lose_the_notification(
     assert await db[PROCESSED_EVENTS].find_one({"_id": str(envelope.event_id)}) is None
 
     monkeypatch.undo()
-    assert await process_event(db, envelope, CORE_HANDLERS) is True  # redelivery
-    assert await count_notifications(db, bob) == 1  # still exactly one
+    assert await process_event(db, envelope, CORE_HANDLERS) is True
+    assert await count_notifications(db, bob) == 1
 
 
 async def test_self_follow_creates_no_notification(db: Database) -> None:

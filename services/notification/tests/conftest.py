@@ -73,7 +73,6 @@ async def app(
     signing_key: Ed25519PrivateKey,
     auth_redis: aioredis.Redis,
 ) -> FastAPI:
-    """The real app, with the JWKS client swapped for the test signing key."""
     application = create_app(settings)
     application.state.database = db
     application.state.authenticator = Authenticator(

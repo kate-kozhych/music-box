@@ -94,7 +94,6 @@ async def test_actor_is_enriched_from_the_snapshot(
 async def test_missing_snapshot_leaves_the_actor_blank(
     client: AsyncClient, db: Database, make_token: TokenFactory
 ) -> None:
-    """A notification must still be readable while the projection lags (NFR-081)."""
     bob, alice = uuid.uuid4(), uuid.uuid4()
     await add_follow_notification(db, bob, alice, datetime.now(UTC))
 
@@ -130,7 +129,7 @@ async def test_cursor_pagination_walks_every_notification_once(
 
     assert cursor is None
     assert len(seen) == 5
-    assert len(set(seen)) == 5  # no duplicates, nothing skipped
+    assert len(set(seen)) == 5
 
 
 async def test_cursor_is_stable_when_timestamps_are_identical(
