@@ -10,6 +10,7 @@ import redis.asyncio as aioredis
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pymongo import AsyncMongoClient
+from pymongo.errors import PyMongoError
 
 from innotter_common.adapters.fastapi import install
 from innotter_common.auth import AsyncAuthStateReader, JwksClient, TokenVerifier
@@ -42,7 +43,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        await ensure_indexes(database, processed_event_ttl_days=settings.processed_event_ttl_days)
+        try:
+            await ensure_indexes(
+                database, processed_event_ttl_days=settings.processed_event_ttl_days
+            )
+        except PyMongoError:
+            log.exception("Index bootstrap failed; readiness will report mongo unavailable")
         task: asyncio.Task[None] | None = None
         if settings.consumers_enabled:
             task = asyncio.create_task(consumer.run(), name="notification-consumers")
