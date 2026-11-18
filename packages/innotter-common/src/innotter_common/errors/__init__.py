@@ -24,6 +24,8 @@ class ErrorCode(StrEnum):
     LAST_ADMIN = "last_admin"
     CANNOT_BLOCK_SELF = "cannot_block_self"
     INVALID_CURRENT_PASSWORD = "invalid_current_password"
+    FILE_TOO_LARGE = "file_too_large"
+    UNSUPPORTED_MEDIA_TYPE = "unsupported_media_type"
     RATE_LIMITED = "rate_limited"
     SERVICE_UNAVAILABLE = "service_unavailable"
     INTERNAL_ERROR = "internal_error"
@@ -45,6 +47,8 @@ _TITLES: dict[ErrorCode, str] = {
     ErrorCode.LAST_ADMIN: "Last administrator",
     ErrorCode.CANNOT_BLOCK_SELF: "Cannot block yourself",
     ErrorCode.INVALID_CURRENT_PASSWORD: "Invalid current password",
+    ErrorCode.FILE_TOO_LARGE: "File too large",
+    ErrorCode.UNSUPPORTED_MEDIA_TYPE: "Unsupported media type",
     ErrorCode.RATE_LIMITED: "Too many requests",
     ErrorCode.SERVICE_UNAVAILABLE: "Service unavailable",
     ErrorCode.INTERNAL_ERROR: "Internal server error",
@@ -117,6 +121,15 @@ def conflict(code: ErrorCode, detail: str) -> AppError:
     return AppError(409, code, detail)
 
 
+def file_too_large(max_bytes: int) -> AppError:
+    limit = max_bytes // (1024 * 1024)
+    return AppError(413, ErrorCode.FILE_TOO_LARGE, f"The file must not exceed {limit} MB.")
+
+
+def unsupported_media_type(detail: str) -> AppError:
+    return AppError(422, ErrorCode.UNSUPPORTED_MEDIA_TYPE, detail)
+
+
 def rate_limited(retry_after_seconds: int) -> AppError:
     return AppError(
         429,
@@ -136,10 +149,12 @@ __all__ = [
     "ErrorCode",
     "FieldError",
     "conflict",
+    "file_too_large",
     "forbidden",
     "internal_error",
     "not_found",
     "rate_limited",
     "unauthorized",
+    "unsupported_media_type",
     "validation_failed",
 ]
