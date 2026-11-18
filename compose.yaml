@@ -256,13 +256,13 @@ services:
   core-worker:
     build: *core-build
     command:
-      ["celery", "-A", "innotter_core.config.celery", "worker", "--beat", "--loglevel=INFO",
+      ["celery", "-A", "innotter_core.config.celery", "worker", "--beat",
+       "--schedule=/tmp/celerybeat-schedule", "--loglevel=INFO",
        "--concurrency=2", "--queues=core", "--without-gossip", "--without-mingle"]
     environment: *core-env
     networks: [backend]
     healthcheck:
-      test: ["CMD", "celery", "-A", "innotter_core.config.celery", "inspect", "ping",
-             "--destination", "celery@$$HOSTNAME", "--timeout", "10"]
+      test: ["CMD-SHELL", 'celery -A innotter_core.config.celery inspect ping --destination "celery@$$HOSTNAME" --timeout 10']
       interval: 15s
       timeout: 15s
       retries: 5

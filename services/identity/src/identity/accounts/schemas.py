@@ -3,6 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from identity import avatars
 from identity.accounts.model import (
     BIO_MAX,
     Account,
@@ -80,7 +81,11 @@ class AccountOut(BaseModel):
             email=account.email,
             display_name=account.display_name,
             bio=account.bio,
-            avatar_url=None,
+            avatar_url=avatars.url_for(account.avatar_key),
             role=account.role,
             created_at=account.created_at,
         )
+
+
+class AvatarOut(BaseModel):
+    avatar_url: str

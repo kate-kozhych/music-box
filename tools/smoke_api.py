@@ -20,6 +20,15 @@ class SmokeError(Exception):
     pass
 
 
+def decode(raw: bytes) -> Any:
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return raw.decode(errors="replace").strip()
+
+
 def call(
     method: str, path: str, body: Any = None, token: str | None = None, headers: dict[str, str] | None = None
 ) -> tuple[int, Any]:
@@ -34,14 +43,51 @@ def call(
         request.add_header(key, value)
     try:
         with opener.open(request, timeout=10) as response:
-            raw = response.read()
-            return response.status, json.loads(raw) if raw else None
+            return response.status, decode(response.read())
     except urllib.error.HTTPError as error:
-        raw = error.read()
-        try:
-            return error.code, json.loads(raw)
-        except ValueError:
-            return error.code, raw.decode(errors="replace")
+        return error.code, decode(error.read())
+
+
+PNG_HEADER = b"\x89PNG\r\n\x1a\n"
+MAX_AVATAR_BYTES = 2 * 1024 * 1024
+
+
+def png(size: int) -> bytes:
+    return PNG_HEADER + b"\x00" * (size - len(PNG_HEADER))
+
+
+def upload_avatar(data: bytes, token: str | None = None, filename: str = "avatar.png") -> tuple[int, Any]:
+    boundary = "----smoke" + secrets.token_hex(16)
+    body = b"".join(
+        [
+            f"--{boundary}\r\n".encode(),
+            f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'.encode(),
+            b"Content-Type: application/octet-stream\r\n\r\n",
+            data,
+            f"\r\n--{boundary}--\r\n".encode(),
+        ]
+    )
+    request = urllib.request.Request(  # noqa: S310
+        BASE + "/api/v1/account/avatar", data=body, method="PUT"
+    )
+    request.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
+    if token:
+        request.add_header("Authorization", f"Bearer {token}")
+    request.add_header("Accept", "application/json")
+    try:
+        with opener.open(request, timeout=30) as response:
+            return response.status, decode(response.read())
+    except urllib.error.HTTPError as error:
+        return error.code, decode(error.read())
+
+
+def fetch_bytes(path: str) -> tuple[int, bytes]:
+    request = urllib.request.Request(BASE + path, method="GET")  # noqa: S310
+    try:
+        with opener.open(request, timeout=10) as response:
+            return response.status, response.read()
+    except urllib.error.HTTPError as error:
+        return error.code, error.read()
 
 
 def step(name: str, condition: bool, detail: Any = "") -> None:
@@ -89,6 +135,48 @@ def main() -> int:
 
     status, body = call("PATCH", "/api/v1/account", {"role": "ADMIN"}, token=token)
     step("PATCH /account with role -> 422 unknown_field", status == 422 and body["code"] == "unknown_field", body)
+
+    # --- Avatars (US-006): upload -> fetch -> replace -> remove --------------
+    status, body = upload_avatar(png(4096), token)
+    step("upload a PNG avatar -> 200 + url", status == 200 and body["avatar_url"].startswith("/media/avatars/"), body)
+    first_avatar = body["avatar_url"]
+
+    status, raw = fetch_bytes(first_avatar)
+    step("the gateway serves the uploaded avatar", status == 200 and raw == png(4096), status)
+
+    status, body = call("GET", "/api/v1/account", token=token)
+    step("GET /account returns the avatar url", body["avatar_url"] == first_avatar, body)
+
+    status, body = upload_avatar(png(MAX_AVATAR_BYTES), token)
+    step("a 2 MB avatar passes the gateway and is accepted", status == 200, (status, body))
+    max_size_avatar = body["avatar_url"]
+    status, _ = fetch_bytes(first_avatar)
+    step("the replaced avatar file is gone", status == 404, status)
+
+    status, body = upload_avatar(png(MAX_AVATAR_BYTES + 1), token)
+    step("an oversized avatar reaches the app and is refused", status == 413 and body["code"] == "file_too_large", (status, body))
+
+    status, body = upload_avatar(b"MZ\x90\x00\x03\x00\x00\x00" * 8, token, filename="avatar.png")
+    step("a renamed executable -> 422 unsupported_media_type", status == 422 and body["code"] == "unsupported_media_type", body)
+
+    status, body = call("GET", "/api/v1/account", token=token)
+    step("rejected uploads leave the avatar intact", body["avatar_url"] == max_size_avatar, body)
+
+    wait_for(
+        "the avatar reaches the Core profile (event)",
+        lambda: call("GET", f"/api/v1/users/{alice}")[1].get("avatar_url") == max_size_avatar,
+    )
+
+    status, body = call("DELETE", "/api/v1/account/avatar", token=token)
+    step("DELETE /account/avatar -> 204", status == 204, body)
+    status, body = call("DELETE", "/api/v1/account/avatar", token=token)
+    step("deleting again is still 204", status == 204, body)
+    status, body = call("GET", "/api/v1/account", token=token)
+    step("the account shows no avatar", body["avatar_url"] is None, body)
+    status, _ = fetch_bytes(max_size_avatar)
+    step("the removed avatar file is gone", status == 404, status)
+    status, body = upload_avatar(png(4096))
+    step("guest avatar upload -> 401", status == 401, body)
 
     wait_for("bob's projection reaches Core (event)", lambda: call("GET", f"/api/v1/users/{bob}")[0] == 200)
 

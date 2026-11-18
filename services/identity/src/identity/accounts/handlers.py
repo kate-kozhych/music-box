@@ -4,6 +4,7 @@ import uuid
 
 from sqlalchemy.exc import IntegrityError
 
+from identity import avatars
 from identity.accounts.commands import RegisterAccount, UpdateProfile
 from identity.accounts.model import (
     Account,
@@ -13,7 +14,7 @@ from identity.accounts.model import (
     password_problem,
     username_problem,
 )
-from identity.accounts.ports import AccountsUnitOfWork, PasswordHasher
+from identity.accounts.ports import AccountsUnitOfWork, AvatarStorage, PasswordHasher
 from identity.kernel.clock import Clock
 from innotter_common.errors import (
     AppError,
@@ -127,17 +128,66 @@ async def update_profile(cmd: UpdateProfile, uow: AccountsUnitOfWork, clock: Clo
             changed = True
 
     if changed:
-        account.profile_version += 1
-        account.updated_at = clock.now()
-        uow.outbox.add(
-            USER_PROFILE_UPDATED,
-            UserProfileUpdatedV1(
-                user_id=account.id,
-                display_name=account.display_name,
-                bio=account.bio,
-                avatar_url=None,
-                profile_version=account.profile_version,
-            ),
-        )
+        _publish_profile(account, uow, clock)
     await uow.commit()
     return account
+
+
+def _publish_profile(account: Account, uow: AccountsUnitOfWork, clock: Clock) -> None:
+    account.profile_version += 1
+    account.updated_at = clock.now()
+    uow.outbox.add(
+        USER_PROFILE_UPDATED,
+        UserProfileUpdatedV1(
+            user_id=account.id,
+            display_name=account.display_name,
+            bio=account.bio,
+            avatar_url=avatars.url_for(account.avatar_key),
+            profile_version=account.profile_version,
+        ),
+    )
+
+
+async def _active_account_for_update(account_id: uuid.UUID, uow: AccountsUnitOfWork) -> Account:
+    account = await uow.accounts.get(account_id, for_update=True)
+    if account is None or not account.is_active:
+        raise unauthorized(ErrorCode.TOKEN_INVALID, "The account is not active.")
+    return account
+
+
+async def set_avatar(
+    account_id: uuid.UUID,
+    data: bytes,
+    uow: AccountsUnitOfWork,
+    storage: AvatarStorage,
+    clock: Clock,
+) -> Account:
+    avatars.ensure_within_limit(data)
+    media_type = avatars.detect_media_type(data)
+    account = await _active_account_for_update(account_id, uow)
+    previous = account.avatar_key
+    key = avatars.new_key(media_type)
+
+    await storage.save(key, data)
+    try:
+        account.avatar_key = key
+        _publish_profile(account, uow, clock)
+        await uow.commit()
+    except BaseException:
+        await storage.discard(key)
+        raise
+    await storage.discard(previous if previous != key else None)
+    return account
+
+
+async def remove_avatar(
+    account_id: uuid.UUID, uow: AccountsUnitOfWork, storage: AvatarStorage, clock: Clock
+) -> None:
+    account = await _active_account_for_update(account_id, uow)
+    previous = account.avatar_key
+    if previous is None:
+        return
+    account.avatar_key = None
+    _publish_profile(account, uow, clock)
+    await uow.commit()
+    await storage.discard(previous)

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from identity.accounts.hashing import Argon2PasswordHasher
 from identity.accounts.sql import SqlAccountRepository
 from identity.administration.model import UserModerationLog
+from identity.avatars import LocalAvatarStorage
 from identity.kernel.clock import Clock, SystemClock
 from identity.kernel.db import create_engine, create_session_factory
 from identity.kernel.uow import SqlUnitOfWork
@@ -52,6 +53,7 @@ class Container:
     auth_writer: RedisAuthStateWriter
     throttle: RedisLoginThrottle
     session_deps: SessionDeps
+    avatar_storage: LocalAvatarStorage
 
     def uow(self) -> IdentityUnitOfWork:
         return IdentityUnitOfWork(self.session_factory)
@@ -105,4 +107,5 @@ def build_container(settings: Settings, *, clock: Clock | None = None) -> Contai
         session_deps=SessionDeps(
             signer=signer, clock=clock, refresh_ttl_seconds=settings.refresh_token_ttl_seconds
         ),
+        avatar_storage=LocalAvatarStorage(settings.avatar_dir),
     )
