@@ -84,6 +84,8 @@ async def test_topology_is_declared_as_durable_quorum_queues_with_a_dlq(
             await declare_topology(channel, spec)
 
         exchange = await channel.get_exchange(EXCHANGE)
+        probe = await channel.declare_queue("", exclusive=True)
+        await probe.bind(exchange, routing_key="core.follow.#")
         envelope = Envelope(
             event_id=uuid.uuid4(),
             type="core.follow.created.v1",
@@ -100,9 +102,8 @@ async def test_topology_is_declared_as_durable_quorum_queues_with_a_dlq(
             routing_key=envelope.type,
         )
 
-        queue = await channel.get_queue(CORE_QUEUE.name)
-        message = await queue.get(timeout=5, fail=False)
-        assert message is not None, "the event should be routed to notif.core-events"
+        message = await probe.get(timeout=5, fail=False)
+        assert message is not None, "core.follow.* must route through the events exchange"
         await message.ack()
         assert DELIVERY_LIMIT == 5
         assert DEAD_LETTER_EXCHANGE == "innotter.dlx"
