@@ -59,22 +59,22 @@ async def list_users_endpoint(
             page=page,
             size=size,
         )
-    return AdminUserPage(
-        items=[
-            AdminUserOut(
-                id=a.id,
-                username=a.username,
-                display_name=a.display_name,
-                role=a.role,
-                status=a.status,
-                created_at=a.created_at,
-            )
-            for a in result.items
-        ],
-        page=result.page,
-        size=result.size,
-        total=result.total,
-    )
+        return AdminUserPage(
+            items=[
+                AdminUserOut(
+                    id=a.id,
+                    username=a.username,
+                    display_name=a.display_name,
+                    role=a.role,
+                    status=a.status,
+                    created_at=a.created_at,
+                )
+                for a in result.items
+            ],
+            page=result.page,
+            size=result.size,
+            total=result.total,
+        )
 
 
 @router.post(

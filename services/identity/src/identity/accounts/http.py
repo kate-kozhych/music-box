@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/v1/account", tags=["account"])
 async def get_account(principal: CurrentPrincipal, container: Container) -> AccountOut:
     async with container.uow() as uow:
         account = await get_active_account(principal.user_id, uow)
-    return AccountOut.of(account)
+        return AccountOut.of(account)
 
 
 @router.patch("", response_model=AccountOut, summary="Edit my display name and bio (US-005, P04)")
@@ -27,4 +27,4 @@ async def patch_account(
     )
     async with container.uow() as uow:
         account = await update_profile(cmd, uow, container.clock)
-    return AccountOut.of(account)
+        return AccountOut.of(account)
