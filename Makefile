@@ -24,7 +24,8 @@ help: ## List available targets
 
 .PHONY: install
 install: ## Install all Python (Poetry) and Node dependencies from lockfiles
-	@for p in $(PY_PROJECTS); do echo "==> poetry install ($$p)"; (cd $$p && poetry install --no-interaction); done
+	@echo "==> poetry install ($(PY_LIB))"; (cd $(PY_LIB) && poetry install --no-interaction --all-extras)
+	@for p in $(PY_SERVICES); do echo "==> poetry install ($$p)"; (cd $$p && poetry install --no-interaction); done
 	@echo "==> npm ci ($(FRONTEND))"; cd $(FRONTEND) && npm ci
 
 .PHONY: lock
@@ -42,9 +43,9 @@ lint: lint-py lint-fe ## Lint, format-check, type-check and boundary-check every
 lint-py: ## Ruff + mypy for every Python project, import-linter for services
 	@for p in $(PY_PROJECTS); do \
 	  echo "==> lint $$p"; \
-	  (cd $$p && poetry run ruff check . && poetry run ruff format --check . && poetry run mypy); \
+	  (cd $$p && poetry run ruff check . && poetry run ruff format --check . && poetry run mypy) || exit 1; \
 	done
-	@for p in $(PY_SERVICES); do echo "==> import contracts $$p"; (cd $$p && poetry run lint-imports); done
+	@for p in $(PY_SERVICES); do echo "==> import contracts $$p"; (cd $$p && poetry run lint-imports) || exit 1; done
 	@python3 tools/check_service_isolation.py
 
 .PHONY: lint-fe

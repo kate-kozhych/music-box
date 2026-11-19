@@ -1,0 +1,312 @@
+# B-03 — one pipeline for the whole monorepo (US-047, NFR-020, NFR-029, NFR-074).
+#
+# Jobs mirror `make lint` / `make test`, but run the service suites against
+# GitHub service containers instead of Compose, so the datastores are real
+# (NFR-023) without needing Docker-in-Docker. No secrets are referenced: every
+# credential below is a throwaway CI value (NFR-026).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.13"
+  NODE_VERSION: "24"
+  POETRY_VERSION: "2.5.1"
+
+jobs:
+  lint-python:
+    name: Lint / types / boundaries (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: packages/musicbox-common
+            contracts: false
+          - project: services/identity
+            contracts: true
+          - project: services/core
+            contracts: true
+          - project: services/notification
+            contracts: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: ./.github/actions/poetry-install
+        with:
+          project: ${{ matrix.project }}
+          all-extras: ${{ matrix.project == 'packages/musicbox-common' }}
+
+      - name: Ruff (lint)
+        working-directory: ${{ matrix.project }}
+        run: poetry run ruff check --output-format=github .
+      - name: Ruff (format check)
+        working-directory: ${{ matrix.project }}
+        run: poetry run ruff format --check .
+      - name: mypy (strict)
+        working-directory: ${{ matrix.project }}
+        run: poetry run mypy
+      - name: Import contracts (NFR-029)
+        if: matrix.contracts
+        working-directory: ${{ matrix.project }}
+        run: poetry run lint-imports
+
+  service-isolation:
+    name: Service isolation (NFR-029)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: python3 tools/check_service_isolation.py
+
+  test-common:
+    name: Tests — musicbox-common
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: ./.github/actions/poetry-install
+        with:
+          project: packages/musicbox-common
+          all-extras: "true"
+      - name: pytest with coverage
+        working-directory: packages/musicbox-common
+        run: poetry run pytest -q --cov --cov-report=json:coverage.json --cov-report=term
+      # The shared auth code is a critical module, and it clears the NFR-021
+      # bar today, so it is gated rather than only reported.
+      - name: Coverage gate (NFR-020, NFR-021)
+        run: |
+          python3 tools/check_coverage.py packages/musicbox-common/coverage.json \
+            --critical musicbox_common/auth
+
+  test-identity:
+    name: Tests — Identity (PostgreSQL, Redis)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: identity
+          POSTGRES_PASSWORD: ci-identity
+          POSTGRES_DB: identity
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U identity"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      IDENTITY_ENV: test
+      IDENTITY_DB_HOST: 127.0.0.1
+      IDENTITY_DB_PORT: "5432"
+      IDENTITY_DB_NAME: identity_test
+      IDENTITY_DB_USER: identity
+      IDENTITY_DB_PASSWORD: ci-identity
+      IDENTITY_REDIS_AUTH_URL: redis://127.0.0.1:6379/14
+      IDENTITY_REDIS_THROTTLE_URL: redis://127.0.0.1:6379/13
+      IDENTITY_AMQP_URL: amqp://guest:guest@127.0.0.1:5672/
+      IDENTITY_KEYS_DIR: /tmp/identity-keys
+      IDENTITY_AVATAR_DIR: /tmp/identity-avatars
+      IDENTITY_OUTBOX_RELAY_ENABLED: "false"
+      IDENTITY_ARGON2_TIME_COST: "1"
+      IDENTITY_ARGON2_MEMORY_COST_KIB: "1024"
+      IDENTITY_ARGON2_PARALLELISM: "1"
+      IDENTITY_REGISTER_MAX_PER_HOUR: "100000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: ./.github/actions/poetry-install
+        with:
+          project: services/identity
+
+      # NFR-074: the migration chain must build the schema from nothing.
+      - name: Alembic upgrade from an empty database
+        working-directory: services/identity
+        run: |
+          PGPASSWORD="$IDENTITY_DB_PASSWORD" psql -h 127.0.0.1 -U identity -d identity \
+            -c 'CREATE DATABASE identity_test'
+          poetry run alembic upgrade head
+          poetry run alembic downgrade base
+      - name: Migration drift (models vs migrations)
+        working-directory: services/identity
+        run: poetry run pytest -q tests/integration/test_migrations.py
+      - name: pytest with coverage
+        working-directory: services/identity
+        run: poetry run pytest -q --cov --cov-report=json:coverage.json --cov-report=term
+      - name: Coverage gate (NFR-020, NFR-021)
+        run: |
+          python3 tools/check_coverage.py services/identity/coverage.json \
+            --critical identity/sessions --critical identity/accounts/hashing \
+            --critical-advisory
+
+  test-core:
+    name: Tests — Core (MySQL, Redis)
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root
+          MYSQL_DATABASE: musicbox_core
+          MYSQL_USER: musicbox_core
+          MYSQL_PASSWORD: ci-core
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pci-root"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DJANGO_SETTINGS_MODULE: musicbox_core.config.settings.test
+      CORE_ENV: test
+      CORE_SECRET_KEY: ci-only-secret-key-at-least-fifty-characters-long-000000
+      CORE_ALLOWED_HOSTS: localhost,testserver
+      CORE_DB_HOST: 127.0.0.1
+      CORE_DB_PORT: "3306"
+      CORE_DB_NAME: musicbox_core
+      # pytest-django creates and drops test_<db>, which needs those rights.
+      CORE_DB_USER: root
+      CORE_DB_PASSWORD: ci-root
+      CORE_REDIS_AUTH_URL: redis://127.0.0.1:6379/15
+      CORE_CELERY_BROKER_URL: redis://127.0.0.1:6379/1
+      CORE_REDIS_CACHE_URL: redis://127.0.0.1:6379/2
+      CORE_AMQP_URL: amqp://guest:guest@127.0.0.1:5672/
+      CORE_JWKS_URL: http://127.0.0.1:8000/.well-known/jwks.json
+      CORE_CATALOG_MODE: offline
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install libmysqlclient headers
+        run: sudo apt-get update && sudo apt-get install -y default-libmysqlclient-dev pkg-config
+      - uses: ./.github/actions/poetry-install
+        with:
+          project: services/core
+
+      - name: Migration drift (makemigrations --check)
+        working-directory: services/core
+        run: poetry run python manage.py makemigrations --check --dry-run
+      - name: Migrate from an empty database (NFR-074)
+        working-directory: services/core
+        run: poetry run python manage.py migrate --noinput
+      - name: pytest with coverage
+        working-directory: services/core
+        run: poetry run pytest -q --cov --cov-report=json:coverage.json --cov-report=term
+      - name: Coverage gate (NFR-020, NFR-021)
+        run: |
+          python3 tools/check_coverage.py services/core/coverage.json \
+            --critical apps/platform --critical-advisory
+
+  test-notification:
+    name: Tests — Notification (MongoDB, RabbitMQ, Redis)
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:8
+        ports: ["27017:27017"]
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+      rabbitmq:
+        image: rabbitmq:4-alpine
+        ports: ["5672:5672"]
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s --health-timeout 10s --health-retries 30
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      NOTIF_ENV: test
+      NOTIF_MONGO_URL: mongodb://127.0.0.1:27017/
+      NOTIF_MONGO_DB: notifications_test
+      NOTIF_REDIS_AUTH_URL: redis://127.0.0.1:6379/12
+      NOTIF_AMQP_URL: amqp://guest:guest@127.0.0.1:5672/
+      NOTIF_JWKS_URL: http://127.0.0.1:8000/.well-known/jwks.json
+      NOTIF_CONSUMERS_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: ./.github/actions/poetry-install
+        with:
+          project: services/notification
+      - name: pytest with coverage
+        working-directory: services/notification
+        run: poetry run pytest -q --cov --cov-report=json:coverage.json --cov-report=term
+      - name: Coverage gate (NFR-020)
+        run: python3 tools/check_coverage.py services/notification/coverage.json
+
+  frontend:
+    name: Frontend — lint, types, tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - working-directory: frontend
+        run: npm ci
+      - working-directory: frontend
+        run: npm run lint
+      - working-directory: frontend
+        run: npm run format:check
+      - working-directory: frontend
+        run: npm run typecheck
+      - working-directory: frontend
+        run: npm test
+
+  compose-smoke:
+    name: Compose stack + smoke (US-044, US-046)
+    runs-on: ubuntu-latest
+    needs: [test-identity, test-core, test-notification]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Build and start the stack
+        run: |
+          cp .env.example .env
+          docker compose up --build -d --wait --wait-timeout 600
+      - name: Seed
+        run: docker compose run --rm seed
+      - name: Smoke test through the gateway
+        run: python3 tools/smoke_api.py http://localhost:8080
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --tail=200
+      - name: Tear down
+        if: always()
+        run: docker compose down -v --remove-orphans
