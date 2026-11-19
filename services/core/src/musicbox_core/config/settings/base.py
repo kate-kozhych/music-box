@@ -23,6 +23,13 @@ INSTALLED_APPS = [
     "musicbox_core.apps.profiles",
 ]
 
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "APP_DIRS": True,
+    }
+]
+
 MIDDLEWARE = [
     "musicbox_common.adapters.django.RequestContextMiddleware",
     "django.middleware.security.SecurityMiddleware",

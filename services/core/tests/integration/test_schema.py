@@ -18,3 +18,13 @@ def test_openapi_schema_is_served() -> None:
     paths = response.json()["paths"]
     assert "/api/v1/users/{username}/follow" in paths
     assert "bearerAuth" in response.json()["components"]["securitySchemes"]
+
+
+@pytest.mark.django_db
+def test_swagger_documentation_renders_as_html() -> None:
+    response = APIClient().get("/api/v1/docs", HTTP_ACCEPT="text/html")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+    assert b"SwaggerUIBundle" in response.content
+    assert b"/api/v1/schema" in response.content

@@ -115,6 +115,10 @@ def main() -> int:
     status, _ = call("GET", "/healthz")
     step("gateway is up", status == 200, status)
 
+    for path in ("/api/v1/auth/docs", "/api/v1/docs", "/api/v1/notifications/docs"):
+        status, html = fetch_bytes(path)
+        step(f"{path} serves Swagger UI", status == 200 and b"SwaggerUIBundle" in html, status)
+
     for user in (alice, bob):
         status, body = call(
             "POST",
