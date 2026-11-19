@@ -48,6 +48,13 @@ def test_valid_token_yields_principal() -> None:
     assert principal.has(Permission.USERS_MANAGE)
 
 
+def test_the_session_id_claim_is_optional() -> None:
+    sid = uuid.uuid4()
+
+    assert VERIFIER.verify(_token(sid=str(sid))).session_id == sid
+    assert VERIFIER.verify(_token()).session_id is None
+
+
 @pytest.mark.parametrize(
     ("overrides", "code"),
     [
@@ -55,6 +62,7 @@ def test_valid_token_yields_principal() -> None:
         ({"aud": "other"}, ErrorCode.TOKEN_INVALID),
         ({"exp": int(time.time()) - 120}, ErrorCode.TOKEN_EXPIRED),
         ({"role": "MODERATOR"}, ErrorCode.TOKEN_INVALID),
+        ({"sid": "not-a-uuid"}, ErrorCode.TOKEN_INVALID),
     ],
 )
 def test_rejected_tokens(overrides: dict[str, Any], code: ErrorCode) -> None:
@@ -101,7 +109,12 @@ def test_parse_jwks_ignores_foreign_keys() -> None:
     raw = KEY.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
     x = base64.urlsafe_b64encode(raw).decode().rstrip("=")
     keys = parse_jwks(
-        {"keys": [{"kty": "OKP", "crv": "Ed25519", "x": x, "kid": "k1"}, {"kty": "RSA", "kid": "r"}]}
+        {
+            "keys": [
+                {"kty": "OKP", "crv": "Ed25519", "x": x, "kid": "k1"},
+                {"kty": "RSA", "kid": "r"},
+            ]
+        }
     )
 
     assert list(keys) == ["k1"]

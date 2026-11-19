@@ -63,6 +63,22 @@ class ProfilePatch(StrictModel):
         return value
 
 
+class PasswordChangeRequest(StrictModel):
+    current_password: str = Field(min_length=1, max_length=128, examples=["Secret123"])
+    new_password: str = Field(examples=["Better456"])
+
+    @field_validator("new_password")
+    @classmethod
+    def _new_password(cls, value: str) -> str:
+        if problem := password_problem(value):
+            raise ValueError(problem)
+        return value
+
+
+class AccountDeleteRequest(StrictModel):
+    password: str = Field(min_length=1, max_length=128, examples=["Secret123"])
+
+
 class AccountOut(BaseModel):
     id: uuid.UUID
     username: str

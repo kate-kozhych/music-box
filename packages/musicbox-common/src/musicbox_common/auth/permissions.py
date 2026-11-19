@@ -30,6 +30,9 @@ class Principal:
     jti: str
     issued_at: float
     expires_at: int
+    # Refresh family the token was minted for (`sid` claim). Only Identity uses
+    # it, to keep the caller's own session when revoking the others (US-008).
+    session_id: uuid.UUID | None = None
 
     @property
     def permissions(self) -> frozenset[Permission]:

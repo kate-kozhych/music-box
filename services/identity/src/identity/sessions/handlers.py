@@ -65,7 +65,11 @@ def _issue(
     )
     uow.refresh_tokens.add(token)
     access = deps.signer.issue(
-        user_id=account.id, username=account.username, role=account.role, now=now.timestamp()
+        user_id=account.id,
+        username=account.username,
+        role=account.role,
+        now=now.timestamp(),
+        session_id=token.family_id,
     )
     return SessionTokens(access.token, access.expires_in, raw), token
 

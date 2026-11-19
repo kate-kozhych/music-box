@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import os
 import tempfile
@@ -35,7 +36,14 @@ class SigningKey:
         raw = self.public_key.public_bytes(
             encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
         )
-        return {"kty": "OKP", "crv": "Ed25519", "x": _b64url(raw), "kid": self.kid, "use": "sig", "alg": ALGORITHM}
+        return {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": _b64url(raw),
+            "kid": self.kid,
+            "use": "sig",
+            "alg": ALGORITHM,
+        }
 
 
 def _kid_for(private_key: Ed25519PrivateKey) -> str:
@@ -59,10 +67,9 @@ def load_or_create_signing_key(keys_dir: Path) -> SigningKey:
             with os.fdopen(fd, "wb") as fh:
                 fh.write(pem)
             Path(tmp_name).chmod(0o600)
-            try:
+            # Another worker may have won the race; its key is equally valid.
+            with contextlib.suppress(FileExistsError):
                 path.hardlink_to(tmp_name)
-            except FileExistsError:
-                pass
         finally:
             Path(tmp_name).unlink(missing_ok=True)
     private_key = serialization.load_pem_private_key(path.read_bytes(), password=None)
@@ -89,7 +96,15 @@ class JwtTokenSigner:
     def ttl_seconds(self) -> int:
         return self._ttl
 
-    def issue(self, *, user_id: uuid.UUID, username: str, role: str, now: float) -> IssuedAccessToken:
+    def issue(
+        self,
+        *,
+        user_id: uuid.UUID,
+        username: str,
+        role: str,
+        now: float,
+        session_id: uuid.UUID | None = None,
+    ) -> IssuedAccessToken:
         jti = uuid.uuid4().hex
         claims: dict[str, Any] = {
             "iss": self._issuer,
@@ -102,7 +117,11 @@ class JwtTokenSigner:
             "iat": round(now, 3),
             "exp": int(now) + self._ttl,
         }
-        token = jwt.encode(claims, self._key.private_key, algorithm=ALGORITHM, headers={"kid": self._key.kid})
+        if session_id is not None:
+            claims["sid"] = str(session_id)
+        token = jwt.encode(
+            claims, self._key.private_key, algorithm=ALGORITHM, headers={"kid": self._key.kid}
+        )
         return IssuedAccessToken(token=token, jti=jti, expires_in=self._ttl)
 
     def jwks(self) -> dict[str, list[dict[str, str]]]:

@@ -14,7 +14,7 @@ from musicbox_common.auth.permissions import Principal, Role
 from musicbox_common.errors import ErrorCode, unauthorized
 
 ALGORITHM = "EdDSA"
-ACCESS_TOKEN_TYPE = "access"
+ACCESS_TOKEN_TYPE = "access"  # noqa: S105  # the `typ` claim value, not a secret
 
 log = logging.getLogger(__name__)
 
@@ -116,6 +116,7 @@ class TokenVerifier:
                 jti=str(claims["jti"]),
                 issued_at=float(claims["iat"]),
                 expires_at=int(claims["exp"]),
+                session_id=uuid.UUID(str(claims["sid"])) if "sid" in claims else None,
             )
         except (KeyError, ValueError) as exc:
             raise unauthorized(ErrorCode.TOKEN_INVALID, "The access token is invalid.") from exc

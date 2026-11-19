@@ -4,27 +4,40 @@ import uuid
 from datetime import datetime
 from typing import Protocol
 
-from identity.accounts.ports import AccountsUnitOfWork
+from identity.accounts.ports import AccountsUnitOfWork, AuthStateWriter
 from identity.sessions.model import RefreshToken
 from identity.sessions.signer import IssuedAccessToken
+
+__all__ = [
+    "AuthStateWriter",
+    "LoginThrottle",
+    "RefreshTokenStore",
+    "SessionsUnitOfWork",
+    "TokenSigner",
+]
 
 
 class TokenSigner(Protocol):
     @property
     def ttl_seconds(self) -> int: ...
-    def issue(self, *, user_id: uuid.UUID, username: str, role: str, now: float) -> IssuedAccessToken: ...
+    def issue(
+        self,
+        *,
+        user_id: uuid.UUID,
+        username: str,
+        role: str,
+        now: float,
+        session_id: uuid.UUID | None = None,
+    ) -> IssuedAccessToken: ...
 
 
 class RefreshTokenStore(Protocol):
     def add(self, token: RefreshToken) -> None: ...
     async def get_by_hash_for_update(self, token_hash: bytes) -> RefreshToken | None: ...
     async def revoke_family(self, family_id: uuid.UUID, at: datetime) -> None: ...
-    async def revoke_all_for_account(self, account_id: uuid.UUID, at: datetime) -> None: ...
-
-
-class AuthStateWriter(Protocol):
-    async def deny_jti(self, jti: str, ttl_seconds: int) -> None: ...
-    async def set_user_state(self, user_id: uuid.UUID, *, status: str, revoked_before: float) -> None: ...
+    async def revoke_all_for_account(
+        self, account_id: uuid.UUID, at: datetime, *, keep_family: uuid.UUID | None = None
+    ) -> None: ...
 
 
 class LoginThrottle(Protocol):
