@@ -6,11 +6,12 @@ from typing import Self
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from identity.kernel.outbox import SqlOutbox
+from identity.kernel.ports import Outbox
 
 
 class SqlUnitOfWork:
     session: AsyncSession
-    outbox: SqlOutbox
+    outbox: Outbox
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory

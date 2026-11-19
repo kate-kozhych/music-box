@@ -4,9 +4,8 @@ import uuid
 from collections.abc import Sequence
 from typing import Protocol
 
-from pydantic import BaseModel
-
 from identity.accounts.model import Account
+from identity.kernel.ports import Outbox
 
 
 class AccountRepository(Protocol):
@@ -32,16 +31,6 @@ class PasswordHasher(Protocol):
     async def verify(self, password_hash: str, password: str) -> bool: ...
     async def verify_dummy(self, password: str) -> None: ...
     def needs_rehash(self, password_hash: str) -> bool: ...
-
-
-class Outbox(Protocol):
-    def add(self, event_type: str, payload: BaseModel) -> None: ...
-
-
-class AvatarStorage(Protocol):
-    async def save(self, key: str, data: bytes) -> None: ...
-    async def delete(self, key: str) -> None: ...
-    async def discard(self, key: str | None) -> None: ...
 
 
 class AccountsUnitOfWork(Protocol):

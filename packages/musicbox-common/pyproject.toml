@@ -30,6 +30,10 @@ pytest-cov = "^6.0"
 respx = ">=0.22"
 ruff = ">=0.11"
 mypy = "^1.15"
+# The framework adapters are optional at runtime but must still be type-checked
+# and tested, so the dev environment installs both extras' stubs (B-03).
+django-stubs = { version = ">=5.2,<5.3", extras = ["compatible-mypy"] }
+djangorestframework-stubs = ">=3.16,<3.17"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

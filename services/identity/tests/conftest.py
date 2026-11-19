@@ -12,6 +12,7 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import text
 
+from identity import avatars
 from identity.app import create_app
 from identity.bootstrap import Container, build_container
 from identity.settings import Settings
@@ -38,7 +39,9 @@ async def _ensure_database(settings: Settings) -> None:
         database="postgres",
     )
     try:
-        exists = await conn.fetchval("SELECT 1 FROM pg_database WHERE datname = $1", settings.db_name)
+        exists = await conn.fetchval(
+            "SELECT 1 FROM pg_database WHERE datname = $1", settings.db_name
+        )
         if not exists:
             await conn.execute(f'CREATE DATABASE "{settings.db_name}"')
     finally:
@@ -106,3 +109,25 @@ def bearer(token: str) -> dict[str, str]:
 
 
 CSRF = {"X-CSRF": "1"}
+
+
+@pytest.fixture
+def avatar_dir(container: Container, tmp_path: Path) -> Path:
+    container.avatar_storage = avatars.LocalAvatarStorage(tmp_path)
+    return tmp_path
+
+
+def break_commit(container: Container) -> None:
+    """Make every later unit of work fail at commit, after its writes are staged."""
+    original_uow = container.uow
+
+    def uow() -> Any:
+        unit = original_uow()
+
+        async def commit() -> None:
+            raise RuntimeError("the database went away mid-commit")
+
+        unit.commit = commit
+        return unit
+
+    container.uow = uow  # type: ignore[method-assign]

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import ClassVar
+
 from django.db import models
 from django.db.models import F, Q
 
@@ -18,10 +20,10 @@ class Follow(models.Model):
 
     class Meta:
         db_table = "follow"
-        constraints = [
+        constraints: ClassVar[list[models.BaseConstraint]] = [
             models.CheckConstraint(condition=~Q(follower=F("followee")), name="follow_not_self"),
         ]
-        indexes = [
+        indexes: ClassVar[list[models.Index]] = [
             models.Index(fields=["followee", "created_at"], name="follow_followee_created_idx"),
             models.Index(fields=["follower", "created_at"], name="follow_follower_created_idx"),
         ]

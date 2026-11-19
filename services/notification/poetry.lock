@@ -862,31 +862,6 @@ files = [
 ]
 
 [[package]]
-name = "musicbox-common"
-version = "0.1.0"
-description = "Musicbox 2.0 shared library: auth verification, event envelope, problem details, cursor pagination, logging. No models, no business rules."
-optional = false
-python-versions = ">=3.13,<3.14"
-groups = ["main"]
-files = []
-develop = true
-
-[package.dependencies]
-fastapi = {version = ">=0.115,<1", optional = true}
-httpx = ">=0.28,<0.29"
-pydantic = ">=2.11,<3"
-pyjwt = {version = ">=2.10,<3", extras = ["crypto"]}
-redis = ">=5.2,<7"
-
-[package.extras]
-django = ["django (>=5.2,<5.3)", "djangorestframework (>=3.16,<3.17)"]
-fastapi = ["fastapi (>=0.115,<1)"]
-
-[package.source]
-type = "directory"
-url = "../../packages/musicbox-common"
-
-[[package]]
 name = "librt"
 version = "0.16.0"
 description = "Mypyc runtime library"
@@ -1250,6 +1225,31 @@ files = [
     {file = "multidict-7.1.0-py3-none-any.whl", hash = "sha256:d9ef29cfd98e17085b4f91bba8fa1570bec6787d5c52ce653ed33a58785585d0"},
     {file = "multidict-7.1.0.tar.gz", hash = "sha256:61a4e5d81b8d4e4ad61964b230129e7a2b914793d96289029078fc9009f074ec"},
 ]
+
+[[package]]
+name = "musicbox-common"
+version = "0.1.0"
+description = "Musicbox 2.0 shared library: auth verification, event envelope, problem details, cursor pagination, logging. No models, no business rules."
+optional = false
+python-versions = ">=3.13,<3.14"
+groups = ["main"]
+files = []
+develop = true
+
+[package.dependencies]
+fastapi = {version = ">=0.115,<1", optional = true}
+httpx = ">=0.28,<0.29"
+pydantic = ">=2.11,<3"
+pyjwt = {version = ">=2.10,<3", extras = ["crypto"]}
+redis = ">=5.2,<7"
+
+[package.extras]
+django = ["django (>=5.2,<5.3)", "djangorestframework (>=3.16,<3.17)"]
+fastapi = ["fastapi (>=0.115,<1)"]
+
+[package.source]
+type = "directory"
+url = "../../packages/musicbox-common"
 
 [[package]]
 name = "mypy"

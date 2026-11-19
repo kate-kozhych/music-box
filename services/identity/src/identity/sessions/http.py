@@ -33,7 +33,7 @@ class LoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: str = "Bearer"
+    token_type: str = "Bearer"  # noqa: S105  # the OAuth token *type*, not a secret
     expires_in: int
 
 
@@ -122,13 +122,17 @@ async def register_endpoint(
     )
 
 
-@router.post("/login", response_model=AuthResponse, summary="Log in with username or email (US-002)")
+@router.post(
+    "/login", response_model=AuthResponse, summary="Log in with username or email (US-002)"
+)
 async def login_endpoint(
     body: LoginRequest, request: Request, response: Response, container: Container
 ) -> AuthResponse:
     cmd = Login(identifier=body.identifier, password=body.password, client_ip=client_ip(request))
     async with container.uow() as uow:
-        signed_in = await login(cmd, uow, container.hasher, container.throttle, container.session_deps)
+        signed_in = await login(
+            cmd, uow, container.hasher, container.throttle, container.session_deps
+        )
         user = AccountOut.of(signed_in.account)
     _set_refresh_cookie(response, signed_in.tokens, container)
     return AuthResponse(
@@ -188,4 +192,6 @@ async def logout_endpoint(
 
 @internal_router.get("/.well-known/jwks.json")
 async def jwks_endpoint(container: Container) -> dict[str, Any]:
-    return container.signer.jwks()
+    # `Container` is intentionally untyped (Any) at the FastAPI boundary.
+    jwks: dict[str, Any] = container.signer.jwks()
+    return jwks

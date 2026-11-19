@@ -19,7 +19,8 @@ def test_guest_sees_public_profile(api: APIClient, make_user: ProfileFactory) ->
     assert body["bio"] == "Shoegaze"
     assert body["counts"]["followers"] == 0
     assert body["viewer"] == {"is_self": False, "follows": None}
-    assert "email" not in body and "status" not in body
+    assert "email" not in body
+    assert "status" not in body
 
 
 def test_unknown_user_is_problem_404(api: APIClient) -> None:

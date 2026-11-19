@@ -14,7 +14,7 @@ def live(request: HttpRequest) -> JsonResponse:
 
 
 def ready(request: HttpRequest) -> JsonResponse:
-    checks = {"catalog_mode": settings.MUSICBOX_CATALOG_MODE}
+    checks: dict[str, str] = {"catalog_mode": settings.MUSICBOX_CATALOG_MODE}
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")

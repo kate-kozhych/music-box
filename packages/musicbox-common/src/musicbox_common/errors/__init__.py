@@ -13,8 +13,8 @@ class ErrorCode(StrEnum):
     UNKNOWN_FIELD = "unknown_field"
     INVALID_CREDENTIALS = "invalid_credentials"
     ACCOUNT_BLOCKED = "account_blocked"
-    TOKEN_INVALID = "token_invalid"
-    TOKEN_EXPIRED = "token_expired"
+    TOKEN_INVALID = "token_invalid"  # noqa: S105  # a wire error code, not a secret
+    TOKEN_EXPIRED = "token_expired"  # noqa: S105  # a wire error code, not a secret
     FORBIDDEN = "forbidden"
     NOT_FOUND = "not_found"
     METHOD_NOT_ALLOWED = "method_not_allowed"
@@ -23,7 +23,7 @@ class ErrorCode(StrEnum):
     SELF_FOLLOW = "self_follow"
     LAST_ADMIN = "last_admin"
     CANNOT_BLOCK_SELF = "cannot_block_self"
-    INVALID_CURRENT_PASSWORD = "invalid_current_password"
+    INVALID_CURRENT_PASSWORD = "invalid_current_password"  # noqa: S105  # a wire error code, not a secret
     FILE_TOO_LARGE = "file_too_large"
     UNSUPPORTED_MEDIA_TYPE = "unsupported_media_type"
     RATE_LIMITED = "rate_limited"

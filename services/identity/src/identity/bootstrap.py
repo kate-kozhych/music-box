@@ -2,21 +2,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import redis.asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from identity.accounts.hashing import Argon2PasswordHasher
+from identity.accounts.ports import AccountRepository
 from identity.accounts.sql import SqlAccountRepository
+from identity.administration.handlers import ModerationLog
 from identity.administration.model import UserModerationLog
-from identity.avatars import LocalAvatarStorage
+from identity.avatars import AvatarStorage, LocalAvatarStorage
 from identity.kernel.clock import Clock, SystemClock
 from identity.kernel.db import create_engine, create_session_factory
 from identity.kernel.uow import SqlUnitOfWork
 from identity.sessions.handlers import SessionDeps
+from identity.sessions.ports import RefreshTokenStore
 from identity.sessions.signer import JwtTokenSigner, load_or_create_signing_key
 from identity.sessions.store import RedisAuthStateWriter, RedisLoginThrottle, SqlRefreshTokenStore
 from identity.settings import Settings
 from musicbox_common.auth import AsyncAuthStateReader, StaticKeyProvider, TokenVerifier
+from musicbox_common.redis_client import Redis, async_client
 
 
 class SqlModerationLog:
@@ -28,9 +31,9 @@ class SqlModerationLog:
 
 
 class IdentityUnitOfWork(SqlUnitOfWork):
-    accounts: SqlAccountRepository
-    refresh_tokens: SqlRefreshTokenStore
-    moderation_log: SqlModerationLog
+    accounts: AccountRepository
+    refresh_tokens: RefreshTokenStore
+    moderation_log: ModerationLog
 
     def _bind(self, session: AsyncSession) -> None:
         self.accounts = SqlAccountRepository(session)
@@ -43,8 +46,8 @@ class Container:
     settings: Settings
     engine: AsyncEngine
     session_factory: async_sessionmaker[AsyncSession]
-    redis_auth: aioredis.Redis
-    redis_throttle: aioredis.Redis
+    redis_auth: Redis
+    redis_throttle: Redis
     clock: Clock
     hasher: Argon2PasswordHasher
     signer: JwtTokenSigner
@@ -53,7 +56,7 @@ class Container:
     auth_writer: RedisAuthStateWriter
     throttle: RedisLoginThrottle
     session_deps: SessionDeps
-    avatar_storage: LocalAvatarStorage
+    avatar_storage: AvatarStorage
 
     def uow(self) -> IdentityUnitOfWork:
         return IdentityUnitOfWork(self.session_factory)
@@ -66,8 +69,8 @@ class Container:
 
 def build_container(settings: Settings, *, clock: Clock | None = None) -> Container:
     engine = create_engine(settings.database_url)
-    redis_auth = aioredis.from_url(settings.redis_auth_url, socket_timeout=2)
-    redis_throttle = aioredis.from_url(settings.redis_throttle_url, socket_timeout=2)
+    redis_auth = async_client(settings.redis_auth_url, socket_timeout=2)
+    redis_throttle = async_client(settings.redis_throttle_url, socket_timeout=2)
     key = load_or_create_signing_key(settings.keys_dir)
     signer = JwtTokenSigner(
         key,

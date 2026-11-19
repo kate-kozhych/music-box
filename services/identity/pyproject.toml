@@ -56,6 +56,9 @@ markers = [
 source = ["identity"]
 branch = true
 omit = ["*/migrations/*"]
+# SQLAlchemy's asyncio layer runs ORM work in greenlets; without this, every
+# line after the first `await` in a handler is reported as unexecuted.
+concurrency = ["thread", "greenlet"]
 
 [tool.mypy]
 python_version = "3.13"

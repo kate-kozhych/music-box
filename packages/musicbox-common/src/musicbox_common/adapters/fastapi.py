@@ -116,7 +116,9 @@ def validation_error_from_pydantic(errors: list[dict[str, Any]]) -> AppError:
         message = str(err.get("msg", "Invalid value."))
         message = message.removeprefix("Value error, ")
         field_errors.append(
-            FieldError(_field_name(tuple(err.get("loc", ()))), _FIELD_CODES.get(kind, kind), message)
+            FieldError(
+                _field_name(tuple(err.get("loc", ()))), _FIELD_CODES.get(kind, kind), message
+            )
         )
     return validation_failed(field_errors, unknown=unknown)
 

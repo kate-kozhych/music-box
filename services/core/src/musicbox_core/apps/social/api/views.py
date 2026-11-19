@@ -24,7 +24,7 @@ PAGE_PARAMS = [
 
 
 class FollowView(APIView):
-    permission_classes = [IsAuthenticatedPrincipal]
+    permission_classes = [IsAuthenticatedPrincipal]  # noqa: RUF012  # DRF view config
 
     @extend_schema(
         request=None,

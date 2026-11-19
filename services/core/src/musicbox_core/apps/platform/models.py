@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import ClassVar
+
 from django.db import models
 
 from musicbox_core.apps.platform.fields import BinaryUUIDField
@@ -15,7 +17,9 @@ class OutboxEvent(models.Model):
 
     class Meta:
         db_table = "outbox"
-        indexes = [models.Index(fields=["published_at"], name="outbox_published_at_idx")]
+        indexes: ClassVar[list[models.Index]] = [
+            models.Index(fields=["published_at"], name="outbox_published_at_idx")
+        ]
 
 
 class InboxEvent(models.Model):
