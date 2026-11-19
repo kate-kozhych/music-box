@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from pymongo.errors import DuplicateKeyError
 
-from innotter_common.events import (
+from musicbox_common.events import (
     FOLLOW_CREATED,
     USER_DELETED,
     USER_PROFILE_UPDATED,
@@ -159,6 +159,118 @@ async def test_stale_profile_update_is_ignored(db: Database) -> None:
     snapshot = await db[USER_SNAPSHOTS].find_one({"_id": str(alice)})
     assert snapshot is not None
     assert (snapshot["display_name"], snapshot["profile_version"]) == ("Alice B.", 4)
+
+
+async def registered(
+    db: Database, user: uuid.UUID, *, avatar_url: str | None = None, version: int = 1
+) -> None:
+    await process_event(
+        db,
+        event(
+            USER_REGISTERED,
+            {
+                "user_id": str(user),
+                "username": "alice",
+                "display_name": "Alice",
+                "avatar_url": avatar_url,
+                "profile_version": version,
+            },
+            producer="identity",
+        ),
+        IDENTITY_HANDLERS,
+    )
+
+
+async def profile_updated(
+    db: Database, user: uuid.UUID, *, avatar_url: str | None, version: int
+) -> None:
+    await process_event(
+        db,
+        event(
+            USER_PROFILE_UPDATED,
+            {
+                "user_id": str(user),
+                "display_name": "Alice",
+                "bio": "",
+                "avatar_url": avatar_url,
+                "profile_version": version,
+            },
+            producer="identity",
+        ),
+        IDENTITY_HANDLERS,
+    )
+
+
+async def test_an_uploaded_avatar_reaches_the_snapshot_and_the_actor(db: Database) -> None:
+    alice, bob = uuid.uuid4(), uuid.uuid4()
+    await process_event(db, follow_event(alice, bob), CORE_HANDLERS)
+    await registered(db, alice)
+
+    await profile_updated(db, alice, avatar_url="/media/avatars/" + "a" * 32 + ".png", version=2)
+
+    snapshot = await db[USER_SNAPSHOTS].find_one({"_id": str(alice)})
+    assert snapshot is not None
+    assert snapshot["avatar_url"] == "/media/avatars/" + "a" * 32 + ".png"
+    actors = await snapshots.get_many(db, [alice])
+    actor = snapshots.as_actor(str(alice), actors[str(alice)])
+    assert actor["avatar_url"] == "/media/avatars/" + "a" * 32 + ".png"
+
+
+async def test_a_replaced_avatar_overwrites_the_snapshot_url(db: Database) -> None:
+    alice = uuid.uuid4()
+    await registered(db, alice, avatar_url="/media/avatars/" + "a" * 32 + ".png")
+
+    await profile_updated(db, alice, avatar_url="/media/avatars/" + "b" * 32 + ".jpg", version=2)
+
+    snapshot = await db[USER_SNAPSHOTS].find_one({"_id": str(alice)})
+    assert snapshot is not None
+    assert snapshot["avatar_url"] == "/media/avatars/" + "b" * 32 + ".jpg"
+
+
+async def test_a_removed_avatar_clears_the_snapshot_url(db: Database) -> None:
+    alice = uuid.uuid4()
+    await registered(db, alice, avatar_url="/media/avatars/" + "a" * 32 + ".png")
+
+    await profile_updated(db, alice, avatar_url=None, version=2)
+
+    snapshot = await db[USER_SNAPSHOTS].find_one({"_id": str(alice)})
+    assert snapshot is not None
+    assert snapshot["avatar_url"] is None
+    actors = await snapshots.get_many(db, [alice])
+    assert snapshots.as_actor(str(alice), actors[str(alice)])["avatar_url"] is None
+
+
+async def test_a_stale_avatar_update_does_not_resurrect_a_removed_avatar(db: Database) -> None:
+    alice = uuid.uuid4()
+    await registered(db, alice, avatar_url="/media/avatars/" + "a" * 32 + ".png")
+    await profile_updated(db, alice, avatar_url=None, version=3)
+
+    # The upload event (v2) is redelivered after the removal (v3) has landed.
+    await profile_updated(db, alice, avatar_url="/media/avatars/" + "a" * 32 + ".png", version=2)
+
+    snapshot = await db[USER_SNAPSHOTS].find_one({"_id": str(alice)})
+    assert snapshot is not None
+    assert snapshot["avatar_url"] is None
+    assert snapshot["profile_version"] == 3
+
+
+async def test_deleting_a_user_drops_the_avatar_from_the_snapshot(db: Database) -> None:
+    alice = uuid.uuid4()
+    await registered(db, alice, avatar_url="/media/avatars/" + "a" * 32 + ".png")
+
+    await process_event(
+        db,
+        event(
+            USER_DELETED,
+            {"user_id": str(alice), "deleted_at": datetime.now(UTC).isoformat()},
+            producer="identity",
+        ),
+        IDENTITY_HANDLERS,
+    )
+
+    snapshot = await db[USER_SNAPSHOTS].find_one({"_id": str(alice)})
+    assert snapshot is not None
+    assert snapshot["avatar_url"] is None
 
 
 async def test_out_of_order_status_change_is_ignored(db: Database) -> None:

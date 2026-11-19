@@ -1,0 +1,9 @@
+from __future__ import annotations
+
+from typing import Protocol
+
+
+class AvatarStorage(Protocol):
+    async def save(self, key: str, data: bytes) -> None: ...
+    async def delete(self, key: str) -> None: ...
+    async def discard(self, key: str | None) -> None: ...

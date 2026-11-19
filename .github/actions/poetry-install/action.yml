@@ -1,0 +1,41 @@
+# Shared by every Python job in ci.yml: pinned Poetry, cached virtualenv,
+# install strictly from the committed lockfile (NFR-078, reproducible builds).
+name: Poetry install
+description: Install a monorepo Python project from its lockfile, with caching.
+
+inputs:
+  project:
+    description: Path to the project directory (the one holding pyproject.toml).
+    required: true
+  all-extras:
+    description: Install the optional extras too (needed for musicbox-common).
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Install Poetry
+      shell: bash
+      run: pipx install "poetry==${POETRY_VERSION:-2.5.1}"
+
+    - name: Use an in-project virtualenv
+      shell: bash
+      working-directory: ${{ inputs.project }}
+      run: poetry config virtualenvs.in-project true
+
+    - name: Cache the virtualenv
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.project }}/.venv
+        key: venv-${{ runner.os }}-${{ inputs.project }}-${{ inputs.all-extras }}-${{ hashFiles(format('{0}/poetry.lock', inputs.project), 'packages/musicbox-common/poetry.lock') }}
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ inputs.project }}
+      run: |
+        if [ "${{ inputs.all-extras }}" = "true" ]; then
+          poetry install --no-interaction --all-extras
+        else
+          poetry install --no-interaction
+        fi

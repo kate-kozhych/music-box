@@ -1,5 +1,5 @@
 # Shared Ruff configuration for every Python project in the monorepo
-# (packages/innotter-common and services/*). Service pyproject.toml files
+# (packages/musicbox-common and services/*). Service pyproject.toml files
 # deliberately have no [tool.ruff] table, so Ruff walks up to this file and
 # all services are linted and formatted identically (architecture.md R6).
 
@@ -45,13 +45,13 @@ ignore = [
 ban-relative-imports = "all"
 
 [lint.isort]
-known-first-party = ["innotter_common", "identity", "innotter_core", "notifier"]
+known-first-party = ["musicbox_common", "identity", "musicbox_core", "notifier"]
 
 [format]
 quote-style = "double"
 docstring-code-format = true
 
 [lint.flake8-builtins]
-# Compare full module paths, so innotter_common.logging / apps.platform are not
+# Compare full module paths, so musicbox_common.logging / apps.platform are not
 # reported as shadowing the stdlib (they are only ever imported absolutely).
 strict-checking = false

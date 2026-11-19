@@ -6,10 +6,10 @@ from pathlib import Path
 
 SERVICE_PACKAGES: dict[str, str] = {
     "identity": "identity",
-    "core": "innotter_core",
+    "core": "musicbox_core",
     "notification": "notifier",
 }
-SHARED_LIBRARY_DIR = Path("packages/innotter-common")
+SHARED_LIBRARY_DIR = Path("packages/musicbox-common")
 
 
 def imported_roots(path: Path) -> set[str]:
@@ -39,7 +39,7 @@ def main(root: Path) -> int:
                 violations.append(f"{file.relative_to(root)}: imports '{name}'")
 
     if violations:
-        sys.stderr.write("Cross-service imports found (only innotter_common may be shared):\n")
+        sys.stderr.write("Cross-service imports found (only musicbox_common may be shared):\n")
         sys.stderr.write("\n".join(f"  {v}" for v in violations) + "\n")
         return 1
     sys.stdout.write("service isolation: OK\n")

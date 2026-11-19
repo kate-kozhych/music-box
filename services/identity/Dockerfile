@@ -16,7 +16,7 @@ WORKDIR /app
 
 FROM base AS builder
 RUN pip install "poetry>=2.1,<3"
-COPY packages/innotter-common /app/packages/innotter-common
+COPY packages/musicbox-common /app/packages/musicbox-common
 COPY services/identity/pyproject.toml services/identity/poetry.lock /app/services/identity/
 WORKDIR /app/services/identity
 RUN poetry install --only main --no-root
@@ -30,7 +30,7 @@ RUN poetry install --with dev
 ENV PATH="/app/services/identity/.venv/bin:${PATH}"
 EXPOSE 8000
 CMD ["uvicorn", "identity.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", \
-     "--reload", "--reload-dir", "/app/services/identity/src", "--reload-dir", "/app/packages/innotter-common/src"]
+     "--reload", "--reload-dir", "/app/services/identity/src", "--reload-dir", "/app/packages/musicbox-common/src"]
 
 FROM base AS prod
 RUN groupadd --system app \

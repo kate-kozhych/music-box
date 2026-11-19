@@ -24,8 +24,8 @@ class Settings(BaseSettings):
     redis_throttle_url: str
     amqp_url: SecretStr
 
-    jwt_issuer: str = "innotter-identity"
-    jwt_audience: str = "innotter"
+    jwt_issuer: str = "musicbox-identity"
+    jwt_audience: str = "musicbox"
     access_token_ttl_seconds: int = Field(900, ge=60, le=1800)
     refresh_token_ttl_days: int = Field(7, ge=1, le=7)
     keys_dir: Path = Path("/var/lib/identity/keys")

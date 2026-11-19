@@ -13,14 +13,14 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from pymongo import AsyncMongoClient
 
-from innotter_common.auth import AsyncAuthStateReader, StaticKeyProvider, TokenVerifier
+from musicbox_common.auth import AsyncAuthStateReader, StaticKeyProvider, TokenVerifier
 from notifier.app import create_app
 from notifier.auth import Authenticator
 from notifier.db import NOTIFICATIONS, PROCESSED_EVENTS, USER_SNAPSHOTS, Database, ensure_indexes
 from notifier.settings import Settings
 
-ISSUER = "innotter-identity"
-AUDIENCE = "innotter"
+ISSUER = "musicbox-identity"
+AUDIENCE = "musicbox"
 KID = "test-key"
 
 

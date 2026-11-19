@@ -15,7 +15,7 @@ from aio_pika.abc import AbstractChannel, AbstractIncomingMessage, AbstractQueue
 from pydantic import ValidationError
 from pymongo.errors import DuplicateKeyError
 
-from innotter_common.events import (
+from musicbox_common.events import (
     DEAD_LETTER_EXCHANGE,
     DELIVERY_LIMIT,
     EXCHANGE,
@@ -31,7 +31,7 @@ from innotter_common.events import (
     UserRegisteredV1,
     UserStatusChangedV1,
 )
-from innotter_common.logging import request_id_var
+from musicbox_common.logging import request_id_var
 from notifier import notifications, snapshots
 from notifier.db import PROCESSED_EVENTS, Database
 

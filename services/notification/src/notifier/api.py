@@ -6,8 +6,8 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 
-from innotter_common.auth import Principal
-from innotter_common.pagination import MAX_LIMIT, Cursor, parse_limit
+from musicbox_common.auth import Principal
+from musicbox_common.pagination import MAX_LIMIT, Cursor, parse_limit
 from notifier import notifications, snapshots
 from notifier.auth import current_principal
 from notifier.db import Database

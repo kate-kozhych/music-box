@@ -3,7 +3,6 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from identity import avatars
 from identity.accounts.model import (
     BIO_MAX,
     Account,
@@ -12,6 +11,7 @@ from identity.accounts.model import (
     password_problem,
     username_problem,
 )
+from identity.kernel.media import avatar_url
 
 
 class StrictModel(BaseModel):
@@ -63,6 +63,22 @@ class ProfilePatch(StrictModel):
         return value
 
 
+class PasswordChangeRequest(StrictModel):
+    current_password: str = Field(min_length=1, max_length=128, examples=["Secret123"])
+    new_password: str = Field(examples=["Better456"])
+
+    @field_validator("new_password")
+    @classmethod
+    def _new_password(cls, value: str) -> str:
+        if problem := password_problem(value):
+            raise ValueError(problem)
+        return value
+
+
+class AccountDeleteRequest(StrictModel):
+    password: str = Field(min_length=1, max_length=128, examples=["Secret123"])
+
+
 class AccountOut(BaseModel):
     id: uuid.UUID
     username: str
@@ -81,11 +97,7 @@ class AccountOut(BaseModel):
             email=account.email,
             display_name=account.display_name,
             bio=account.bio,
-            avatar_url=avatars.url_for(account.avatar_key),
+            avatar_url=avatar_url(account.avatar_key),
             role=account.role,
             created_at=account.created_at,
         )
-
-
-class AvatarOut(BaseModel):
-    avatar_url: str

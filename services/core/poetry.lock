@@ -1000,32 +1000,6 @@ files = [
 ]
 
 [[package]]
-name = "innotter-common"
-version = "0.1.0"
-description = "Innotter 2.0 shared library: auth verification, event envelope, problem details, cursor pagination, logging. No models, no business rules."
-optional = false
-python-versions = ">=3.13,<3.14"
-groups = ["main"]
-files = []
-develop = true
-
-[package.dependencies]
-django = {version = ">=5.2,<5.3", optional = true}
-djangorestframework = {version = ">=3.16,<3.17", optional = true}
-httpx = ">=0.28,<0.29"
-pydantic = ">=2.11,<3"
-pyjwt = {version = ">=2.10,<3", extras = ["crypto"]}
-redis = ">=5.2,<7"
-
-[package.extras]
-django = ["django (>=5.2,<5.3)", "djangorestframework (>=3.16,<3.17)"]
-fastapi = ["fastapi (>=0.115,<1)"]
-
-[package.source]
-type = "directory"
-url = "../../packages/innotter-common"
-
-[[package]]
 name = "jsonschema"
 version = "4.26.0"
 description = "An implementation of JSON Schema validation for Python"
@@ -1282,6 +1256,32 @@ files = [
     {file = "mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8"},
     {file = "mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba"},
 ]
+
+[[package]]
+name = "musicbox-common"
+version = "0.1.0"
+description = "Musicbox 2.0 shared library: auth verification, event envelope, problem details, cursor pagination, logging. No models, no business rules."
+optional = false
+python-versions = ">=3.13,<3.14"
+groups = ["main"]
+files = []
+develop = true
+
+[package.dependencies]
+django = {version = ">=5.2,<5.3", optional = true}
+djangorestframework = {version = ">=3.16,<3.17", optional = true}
+httpx = ">=0.28,<0.29"
+pydantic = ">=2.11,<3"
+pyjwt = {version = ">=2.10,<3", extras = ["crypto"]}
+redis = ">=5.2,<7"
+
+[package.extras]
+django = ["django (>=5.2,<5.3)", "djangorestframework (>=3.16,<3.17)"]
+fastapi = ["fastapi (>=0.115,<1)"]
+
+[package.source]
+type = "directory"
+url = "../../packages/musicbox-common"
 
 [[package]]
 name = "mypy"
@@ -2271,4 +2271,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<3.14"
-content-hash = "30b11505751be6bf56b3e4b1dd9c7daf66b91345e5559ba366924e8c4130bc25"
+content-hash = "d709fb516c809d7cf1948bd928279794e55b663ad615657fa33bef2e6132d9bb"

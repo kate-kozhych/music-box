@@ -8,10 +8,10 @@ import pika
 import pika.exceptions
 import pytest
 
-from innotter_common.events import EXCHANGE, FOLLOW_CREATED, Envelope, FollowCreatedV1
-from innotter_core.apps.platform import relay
-from innotter_core.apps.platform.models import OutboxEvent
-from innotter_core.apps.platform.outbox import record_event
+from musicbox_common.events import EXCHANGE, FOLLOW_CREATED, Envelope, FollowCreatedV1
+from musicbox_core.apps.platform import relay
+from musicbox_core.apps.platform.models import OutboxEvent
+from musicbox_core.apps.platform.outbox import record_event
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
@@ -136,7 +136,7 @@ def test_record_event_writes_the_row_and_schedules_the_relay(
 ) -> None:
     scheduled: list[bool] = []
     monkeypatch.setattr(
-        "innotter_core.apps.platform.outbox._enqueue_relay", lambda: scheduled.append(True)
+        "musicbox_core.apps.platform.outbox._enqueue_relay", lambda: scheduled.append(True)
     )
 
     row = record_event(
@@ -153,7 +153,7 @@ def test_scheduling_failure_does_not_break_the_write(monkeypatch: pytest.MonkeyP
         raise ConnectionError("celery broker unavailable")
 
     monkeypatch.setattr(
-        "innotter_core.apps.platform.tasks.publish_outbox",
+        "musicbox_core.apps.platform.tasks.publish_outbox",
         type("Task", (), {"delay": staticmethod(explode)}),
     )
 

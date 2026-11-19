@@ -1,10 +1,10 @@
 [project]
-name = "innotter-notification"
+name = "musicbox-notification"
 version = "0.1.0"
-description = "Innotter 2.0 Notification Service: in-app notifications from RabbitMQ events, user snapshots."
+description = "Musicbox 2.0 Notification Service: in-app notifications from RabbitMQ events, user snapshots."
 requires-python = ">=3.13,<3.14"
 dependencies = [
-    "innotter-common[fastapi]",
+    "musicbox-common[fastapi]",
     "fastapi>=0.115,<1",
     "pydantic>=2.11,<3",
     "pydantic-settings>=2.9,<3",
@@ -23,7 +23,7 @@ build-backend = "poetry.core.masonry.api"
 packages = [{ include = "notifier", from = "src" }]
 
 [tool.poetry.dependencies]
-innotter-common = { path = "../../packages/innotter-common", develop = true }
+musicbox-common = { path = "../../packages/musicbox-common", develop = true }
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3"

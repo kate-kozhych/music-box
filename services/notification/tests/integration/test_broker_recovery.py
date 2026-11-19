@@ -10,7 +10,7 @@ import pytest
 import redis.asyncio as aioredis
 from httpx import ASGITransport, AsyncClient
 
-from innotter_common.events import DEAD_LETTER_EXCHANGE, DELIVERY_LIMIT, EXCHANGE, Envelope
+from musicbox_common.events import DEAD_LETTER_EXCHANGE, DELIVERY_LIMIT, EXCHANGE, Envelope
 from notifier.app import create_app
 from notifier.db import Database
 from notifier.inbox import CORE_QUEUE, IDENTITY_QUEUE, EventConsumer, declare_topology
@@ -106,4 +106,4 @@ async def test_topology_is_declared_as_durable_quorum_queues_with_a_dlq(
         assert message is not None, "core.follow.* must route through the events exchange"
         await message.ack()
         assert DELIVERY_LIMIT == 5
-        assert DEAD_LETTER_EXCHANGE == "innotter.dlx"
+        assert DEAD_LETTER_EXCHANGE == "musicbox.dlx"

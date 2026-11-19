@@ -6,15 +6,15 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-import redis.asyncio as aioredis
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pymongo import AsyncMongoClient
 from pymongo.errors import PyMongoError
 
-from innotter_common.adapters.fastapi import install
-from innotter_common.auth import AsyncAuthStateReader, JwksClient, TokenVerifier
-from innotter_common.logging import configure
+from musicbox_common.adapters.fastapi import install
+from musicbox_common.auth import AsyncAuthStateReader, JwksClient, TokenVerifier
+from musicbox_common.logging import configure
+from musicbox_common.redis_client import async_client
 from notifier import api
 from notifier.auth import Authenticator
 from notifier.db import ensure_indexes
@@ -28,13 +28,13 @@ SHUTDOWN_TIMEOUT_S = 10.0
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
-    settings = settings or Settings()  # type: ignore[call-arg]
+    settings = settings or Settings()
     configure("notification", settings.log_level)
     mongo: AsyncMongoClient[Any] = AsyncMongoClient(
         settings.mongo_url.get_secret_value(), serverSelectionTimeoutMS=2000
     )
     database = mongo[settings.mongo_db]
-    redis_auth = aioredis.from_url(settings.redis_auth_url, socket_timeout=2)
+    redis_auth = async_client(settings.redis_auth_url, socket_timeout=2)
     consumer = EventConsumer(
         settings.amqp_url.get_secret_value(),
         database,
@@ -67,7 +67,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await redis_auth.aclose()
 
     app = FastAPI(
-        title="Innotter Notification API",
+        title="Musicbox Notification API",
         version=VERSION,
         docs_url="/api/v1/notifications/docs",
         openapi_url="/api/v1/notifications/openapi.json",

@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Innotter Core — build context: repository root.
+# Musicbox Core — build context: repository root.
 #   dev  : all dependency groups (compose.dev.yaml, test profile)
 #   prod : runtime only, non-root, gunicorn (default in compose.yaml)
 
@@ -12,7 +12,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_IN_PROJECT=true \
-    DJANGO_SETTINGS_MODULE=innotter_core.config.settings.base
+    DJANGO_SETTINGS_MODULE=musicbox_core.config.settings.base
 WORKDIR /app
 
 FROM base AS builder
@@ -21,7 +21,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends build-essential pkg-config default-libmysqlclient-dev \
  && rm -rf /var/lib/apt/lists/*
 RUN pip install "poetry>=2.1,<3"
-COPY packages/innotter-common /app/packages/innotter-common
+COPY packages/musicbox-common /app/packages/musicbox-common
 COPY services/core/pyproject.toml services/core/poetry.lock /app/services/core/
 WORKDIR /app/services/core
 RUN poetry install --only main --no-root
@@ -47,5 +47,5 @@ ENV PATH="/app/services/core/.venv/bin:${PATH}"
 WORKDIR /app/services/core
 USER app
 EXPOSE 8000
-CMD ["gunicorn", "innotter_core.config.wsgi:application", "--bind", "0.0.0.0:8000", \
+CMD ["gunicorn", "musicbox_core.config.wsgi:application", "--bind", "0.0.0.0:8000", \
      "--workers", "3", "--forwarded-allow-ips", "*", "--timeout", "30"]

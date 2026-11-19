@@ -18,8 +18,9 @@ async def test_register_creates_user_and_signs_in(register: Register, container:
     assert body["user"]["role"] == "USER"
     assert body["token_type"] == "Bearer"
     assert body["expires_in"] == 900
-    assert "password" not in str(body) and "hash" not in str(body)
-    assert "innotter_rt" in response.cookies
+    assert "password" not in str(body)
+    assert "hash" not in str(body)
+    assert "musicbox_rt" in response.cookies
     principal = container.verifier.verify(body["access_token"])
     assert principal.username == "ann_1"
 
@@ -32,7 +33,12 @@ async def test_register_creates_user_and_signs_in(register: Register, container:
 async def test_register_rejects_invalid_fields(client: httpx.AsyncClient) -> None:
     response = await client.post(
         "/api/v1/auth/register",
-        json={"username": "ab", "email": "not-an-email", "display_name": "  ", "password": "password"},
+        json={
+            "username": "ab",
+            "email": "not-an-email",
+            "display_name": "  ",
+            "password": "password",
+        },
     )
 
     assert response.status_code == 422
@@ -69,7 +75,9 @@ async def test_duplicate_email_gives_generic_conflict(register: Register) -> Non
 
 
 async def test_request_id_is_echoed(client: httpx.AsyncClient) -> None:
-    response = await client.post("/api/v1/auth/register", json={}, headers={"X-Request-ID": "abc-123"})
+    response = await client.post(
+        "/api/v1/auth/register", json={}, headers={"X-Request-ID": "abc-123"}
+    )
 
     assert response.headers["x-request-id"] == "abc-123"
     assert response.json()["request_id"] == "abc-123"

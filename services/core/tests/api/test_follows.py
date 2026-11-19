@@ -4,10 +4,10 @@ import pytest
 from rest_framework.test import APIClient
 
 from conftest import ProfileFactory, TokenFactory, auth
-from innotter_common.auth import deny_key, user_state_key
-from innotter_core.apps.platform.models import OutboxEvent
-from innotter_core.apps.social.models import Follow
-from innotter_core.apps.users.models import UserProfile
+from musicbox_common.auth import deny_key, user_state_key
+from musicbox_core.apps.platform.models import OutboxEvent
+from musicbox_core.apps.social.models import Follow
+from musicbox_core.apps.users.models import UserProfile
 
 pytestmark = pytest.mark.django_db
 

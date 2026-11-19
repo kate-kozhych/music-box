@@ -7,7 +7,7 @@ import httpx
 import pytest
 from sqlalchemy import select
 
-from conftest import Register, bearer
+from conftest import Register, bearer, break_commit
 from identity import avatars
 from identity.accounts.model import Account
 from identity.bootstrap import Container
@@ -34,12 +34,6 @@ def webp(size: int = 64) -> bytes:
 
 def upload(data: bytes, filename: str = "avatar.png") -> dict[str, Any]:
     return {"file": (filename, data, "application/octet-stream")}
-
-
-@pytest.fixture
-def avatar_dir(container: Container, tmp_path: Path) -> Path:
-    container.avatar_storage = avatars.LocalAvatarStorage(tmp_path)
-    return tmp_path
 
 
 def stored_files(avatar_dir: Path) -> list[Path]:
@@ -296,16 +290,63 @@ async def test_a_database_failure_removes_the_new_file_and_keeps_the_old_one(
     assert (await account_row(container)).avatar_key == original_key
 
 
-def break_commit(container: Container) -> None:
-    original_uow = container.uow
+async def test_a_storage_failure_during_deletion_still_clears_the_profile(
+    register: Register, client: httpx.AsyncClient, container: Container, avatar_dir: Path
+) -> None:
+    token = (await register("nora")).json()["access_token"]
+    await client.put("/api/v1/account/avatar", files=upload(png()), headers=bearer(token))
 
-    def uow() -> Any:
-        unit = original_uow()
+    class UndeletableStorage(avatars.LocalAvatarStorage):
+        async def delete(self, key: str) -> None:
+            raise OSError("read-only filesystem")
 
-        async def commit() -> None:
-            raise RuntimeError("the database went away mid-commit")
+    container.avatar_storage = UndeletableStorage(avatar_dir)
+    response = await client.delete("/api/v1/account/avatar", headers=bearer(token))
 
-        unit.commit = commit  # type: ignore[method-assign]
-        return unit
+    # The row is authoritative: the account loses its avatar even though the
+    # file could not be unlinked, and the orphan stays on the volume.
+    assert response.status_code == 204
+    assert (await account_row(container)).avatar_key is None
+    assert len(stored_files(avatar_dir)) == 1
+    payload = await last_event_payload(container)
+    assert payload["avatar_url"] is None
+    assert (await client.get("/api/v1/account", headers=bearer(token))).json()["avatar_url"] is None
 
-    container.uow = uow  # type: ignore[method-assign]
+
+async def test_a_database_failure_during_deletion_keeps_the_file_and_the_profile(
+    register: Register, client: httpx.AsyncClient, container: Container, avatar_dir: Path
+) -> None:
+    token = (await register("orla")).json()["access_token"]
+    original = (
+        await client.put("/api/v1/account/avatar", files=upload(png()), headers=bearer(token))
+    ).json()["avatar_url"]
+    original_key = original.removeprefix(avatars.URL_PREFIX)
+
+    break_commit(container)
+    with pytest.raises(RuntimeError, match="went away mid-commit"):
+        await client.delete("/api/v1/account/avatar", headers=bearer(token))
+
+    assert [p.name for p in stored_files(avatar_dir)] == [original_key]
+    assert (await account_row(container)).avatar_key == original_key
+    assert await outbox_types(container) == [
+        "identity.user.registered.v1",
+        "identity.user.profile_updated.v1",
+    ]
+
+
+async def test_deletion_does_not_touch_another_accounts_avatar(
+    register: Register, client: httpx.AsyncClient, container: Container, avatar_dir: Path
+) -> None:
+    first = (await register("pia")).json()["access_token"]
+    second = (await register("quin")).json()["access_token"]
+    kept = (
+        await client.put("/api/v1/account/avatar", files=upload(png()), headers=bearer(first))
+    ).json()["avatar_url"]
+    await client.put("/api/v1/account/avatar", files=upload(jpeg()), headers=bearer(second))
+
+    assert (
+        await client.delete("/api/v1/account/avatar", headers=bearer(second))
+    ).status_code == 204
+
+    assert [p.name for p in stored_files(avatar_dir)] == [kept.removeprefix(avatars.URL_PREFIX)]
+    assert (await client.get("/api/v1/account", headers=bearer(first))).json()["avatar_url"] == kept

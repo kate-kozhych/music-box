@@ -9,9 +9,9 @@ from typing import Any
 from bson import ObjectId
 from bson.errors import InvalidId
 
-from innotter_common.errors import FieldError, validation_failed
-from innotter_common.events import FollowCreatedV1
-from innotter_common.pagination import Cursor
+from musicbox_common.errors import FieldError, validation_failed
+from musicbox_common.events import FollowCreatedV1
+from musicbox_common.pagination import Cursor
 from notifier.db import NOTIFICATIONS, Database
 
 FOLLOW = "FOLLOW"

@@ -4,6 +4,7 @@ import hashlib
 import logging
 import uuid
 from datetime import datetime
+from typing import Any
 
 import redis
 import redis.asyncio as aioredis
@@ -11,7 +12,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from identity.sessions.model import RefreshToken
-from innotter_common.auth import deny_key, user_state_key
+from musicbox_common.auth import deny_key, user_state_key
 
 log = logging.getLogger(__name__)
 
@@ -34,12 +35,15 @@ class SqlRefreshTokenStore:
             .values(revoked_at=at)
         )
 
-    async def revoke_all_for_account(self, account_id: uuid.UUID, at: datetime) -> None:
-        await self._session.execute(
-            update(RefreshToken)
-            .where(RefreshToken.account_id == account_id, RefreshToken.revoked_at.is_(None))
-            .values(revoked_at=at)
+    async def revoke_all_for_account(
+        self, account_id: uuid.UUID, at: datetime, *, keep_family: uuid.UUID | None = None
+    ) -> None:
+        stmt = update(RefreshToken).where(
+            RefreshToken.account_id == account_id, RefreshToken.revoked_at.is_(None)
         )
+        if keep_family is not None:
+            stmt = stmt.where(RefreshToken.family_id != keep_family)
+        await self._session.execute(stmt.values(revoked_at=at))
 
 
 class RedisAuthStateWriter:
@@ -51,11 +55,32 @@ class RedisAuthStateWriter:
         if ttl_seconds > 0:
             await self._redis.set(deny_key(jti), "1", ex=ttl_seconds)
 
-    async def set_user_state(self, user_id: uuid.UUID, *, status: str, revoked_before: float) -> None:
+    async def set_user_state(
+        self, user_id: uuid.UUID, *, status: str, revoked_before: float
+    ) -> None:
         key = user_state_key(user_id)
         pipe = self._redis.pipeline(transaction=True)
         pipe.hset(key, mapping={"status": status, "revoked_before": f"{revoked_before:.3f}"})
         pipe.expire(key, self._state_ttl)
+        await pipe.execute()
+
+    async def get_user_state(self, user_id: uuid.UUID) -> dict[str, str]:
+        # redis-py types hgetall as sync-or-async; on the asyncio client it is async.
+        raw: dict[Any, Any] = await self._redis.hgetall(user_state_key(user_id))  # type: ignore[misc]
+        return {
+            (k.decode() if isinstance(k, bytes) else str(k)): (
+                v.decode() if isinstance(v, bytes) else str(v)
+            )
+            for k, v in raw.items()
+        }
+
+    async def restore_user_state(self, user_id: uuid.UUID, state: dict[str, str]) -> None:
+        key = user_state_key(user_id)
+        pipe = self._redis.pipeline(transaction=True)
+        pipe.delete(key)
+        if state:
+            pipe.hset(key, mapping=state)
+            pipe.expire(key, self._state_ttl)
         await pipe.execute()
 
 

@@ -1,4 +1,4 @@
-# Innotter 2.0 — one command per developer task (FR-066, ADR-0008).
+# Musicbox 2.0 — one command per developer task (FR-066, ADR-0008).
 # Run `make help` for the list.
 
 SHELL := /bin/bash
@@ -8,7 +8,7 @@ SHELL := /bin/bash
 COMPOSE      ?= docker compose
 COMPOSE_DEV  := $(COMPOSE) -f compose.yaml -f compose.dev.yaml
 
-PY_LIB       := packages/innotter-common
+PY_LIB       := packages/musicbox-common
 PY_SERVICES  := services/identity services/core services/notification
 PY_PROJECTS  := $(PY_LIB) $(PY_SERVICES)
 FRONTEND     := frontend
@@ -24,7 +24,8 @@ help: ## List available targets
 
 .PHONY: install
 install: ## Install all Python (Poetry) and Node dependencies from lockfiles
-	@for p in $(PY_PROJECTS); do echo "==> poetry install ($$p)"; (cd $$p && poetry install --no-interaction); done
+	@echo "==> poetry install ($(PY_LIB))"; (cd $(PY_LIB) && poetry install --no-interaction --all-extras)
+	@for p in $(PY_SERVICES); do echo "==> poetry install ($$p)"; (cd $$p && poetry install --no-interaction); done
 	@echo "==> npm ci ($(FRONTEND))"; cd $(FRONTEND) && npm ci
 
 .PHONY: lock
@@ -42,9 +43,9 @@ lint: lint-py lint-fe ## Lint, format-check, type-check and boundary-check every
 lint-py: ## Ruff + mypy for every Python project, import-linter for services
 	@for p in $(PY_PROJECTS); do \
 	  echo "==> lint $$p"; \
-	  (cd $$p && poetry run ruff check . && poetry run ruff format --check . && poetry run mypy); \
+	  (cd $$p && poetry run ruff check . && poetry run ruff format --check . && poetry run mypy) || exit 1; \
 	done
-	@for p in $(PY_SERVICES); do echo "==> import contracts $$p"; (cd $$p && poetry run lint-imports); done
+	@for p in $(PY_SERVICES); do echo "==> import contracts $$p"; (cd $$p && poetry run lint-imports) || exit 1; done
 	@python3 tools/check_service_isolation.py
 
 .PHONY: lint-fe
@@ -65,7 +66,7 @@ test: test-py test-fe ## Run all unit/integration test suites
 test-py: test-common test-docker ## Python tests: shared library locally, services in Docker
 
 .PHONY: test-common
-test-common: ## pytest for innotter-common (no infrastructure needed)
+test-common: ## pytest for musicbox-common (no infrastructure needed)
 	cd $(PY_LIB) && poetry run pytest
 
 .PHONY: test-docker

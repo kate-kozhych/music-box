@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     redis_auth_url: str
     amqp_url: SecretStr
     jwks_url: str = "http://identity:8000/.well-known/jwks.json"
-    jwt_issuer: str = "innotter-identity"
-    jwt_audience: str = "innotter"
+    jwt_issuer: str = "musicbox-identity"
+    jwt_audience: str = "musicbox"
 
     consumers_enabled: bool = True
     consumer_prefetch: int = Field(10, ge=1)

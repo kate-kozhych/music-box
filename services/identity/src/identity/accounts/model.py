@@ -18,8 +18,9 @@ DISPLAY_NAME_MAX = 50
 BIO_MAX = 300
 PASSWORD_MIN = 8
 PASSWORD_MAX = 128
+# User-facing policy text, not a secret — hence the S105 suppression.
 PASSWORD_POLICY = (
-    "Password must be 8-128 characters long and contain at least one upper-case letter, "
+    "Password must be 8-128 characters long and contain at least one upper-case letter, "  # noqa: S105
     "one lower-case letter and one digit."
 )
 

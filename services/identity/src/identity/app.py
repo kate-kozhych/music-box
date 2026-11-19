@@ -10,13 +10,14 @@ from sqlalchemy import text
 
 from identity.accounts.http import router as account_router
 from identity.administration.http import router as admin_router
+from identity.avatars.http import router as avatar_router
 from identity.bootstrap import Container, build_container
 from identity.kernel.outbox import OutboxRelay
 from identity.sessions.http import internal_router as jwks_router
 from identity.sessions.http import router as auth_router
 from identity.settings import Settings
-from innotter_common.adapters.fastapi import install
-from innotter_common.logging import configure
+from musicbox_common.adapters.fastapi import install
+from musicbox_common.logging import configure
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ VERSION = "0.2.0"
 
 
 def create_app(settings: Settings | None = None, container: Container | None = None) -> FastAPI:
-    settings = settings or Settings()  # type: ignore[call-arg]  # values come from the env
+    settings = settings or Settings()
     configure("identity", settings.log_level)
     container = container or build_container(settings)
 
@@ -51,7 +52,7 @@ def create_app(settings: Settings | None = None, container: Container | None = N
             await container.aclose()
 
     app = FastAPI(
-        title="Innotter Identity API",
+        title="Musicbox Identity API",
         version=VERSION,
         description="Accounts, sessions (EdDSA JWT + rotating refresh cookie) and user administration.",
         docs_url="/api/v1/auth/docs",
@@ -63,6 +64,7 @@ def create_app(settings: Settings | None = None, container: Container | None = N
     install(app)
     app.include_router(auth_router)
     app.include_router(account_router)
+    app.include_router(avatar_router)
     app.include_router(admin_router)
     app.include_router(jwks_router)
 

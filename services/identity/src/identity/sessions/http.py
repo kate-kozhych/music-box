@@ -15,10 +15,10 @@ from identity.sessions.handlers import (
     register_and_sign_in,
 )
 from identity.web import Container, bearer_scheme, client_ip
-from innotter_common.auth import Principal
-from innotter_common.errors import AppError, forbidden, rate_limited, unauthorized
+from musicbox_common.auth import Principal
+from musicbox_common.errors import AppError, forbidden, rate_limited, unauthorized
 
-REFRESH_COOKIE = "innotter_rt"
+REFRESH_COOKIE = "musicbox_rt"
 REFRESH_COOKIE_PATH = "/api/v1/auth"
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -33,7 +33,7 @@ class LoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: str = "Bearer"
+    token_type: str = "Bearer"  # noqa: S105  # the OAuth token *type*, not a secret
     expires_in: int
 
 
@@ -122,13 +122,17 @@ async def register_endpoint(
     )
 
 
-@router.post("/login", response_model=AuthResponse, summary="Log in with username or email (US-002)")
+@router.post(
+    "/login", response_model=AuthResponse, summary="Log in with username or email (US-002)"
+)
 async def login_endpoint(
     body: LoginRequest, request: Request, response: Response, container: Container
 ) -> AuthResponse:
     cmd = Login(identifier=body.identifier, password=body.password, client_ip=client_ip(request))
     async with container.uow() as uow:
-        signed_in = await login(cmd, uow, container.hasher, container.throttle, container.session_deps)
+        signed_in = await login(
+            cmd, uow, container.hasher, container.throttle, container.session_deps
+        )
         user = AccountOut.of(signed_in.account)
     _set_refresh_cookie(response, signed_in.tokens, container)
     return AuthResponse(
@@ -188,4 +192,6 @@ async def logout_endpoint(
 
 @internal_router.get("/.well-known/jwks.json")
 async def jwks_endpoint(container: Container) -> dict[str, Any]:
-    return container.signer.jwks()
+    # `Container` is intentionally untyped (Any) at the FastAPI boundary.
+    jwks: dict[str, Any] = container.signer.jwks()
+    return jwks

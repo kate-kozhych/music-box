@@ -26,7 +26,7 @@ services:
       IDENTITY_ENV: dev
     volumes:
       - ./services/identity/src:/app/services/identity/src
-      - ./packages/innotter-common/src:/app/packages/innotter-common/src
+      - ./packages/musicbox-common/src:/app/packages/musicbox-common/src
     user: root
 
   core-api:
@@ -36,21 +36,21 @@ services:
       CORE_ENV: dev
     volumes:
       - ./services/core/src:/app/services/core/src
-      - ./packages/innotter-common/src:/app/packages/innotter-common/src
+      - ./packages/musicbox-common/src:/app/packages/musicbox-common/src
 
   core-consumer:
     build:
       target: dev
     volumes:
       - ./services/core/src:/app/services/core/src
-      - ./packages/innotter-common/src:/app/packages/innotter-common/src
+      - ./packages/musicbox-common/src:/app/packages/musicbox-common/src
 
   core-worker:
     build:
       target: dev
     volumes:
       - ./services/core/src:/app/services/core/src
-      - ./packages/innotter-common/src:/app/packages/innotter-common/src
+      - ./packages/musicbox-common/src:/app/packages/musicbox-common/src
 
   notification:
     build:
@@ -59,4 +59,4 @@ services:
       NOTIF_ENV: dev
     volumes:
       - ./services/notification/src:/app/services/notification/src
-      - ./packages/innotter-common/src:/app/packages/innotter-common/src
+      - ./packages/musicbox-common/src:/app/packages/musicbox-common/src

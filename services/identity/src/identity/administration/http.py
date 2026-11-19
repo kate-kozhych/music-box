@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from identity.administration.handlers import block_user, list_users, unblock_user
 from identity.web import Container, require
-from innotter_common.auth import Permission, Principal
+from musicbox_common.auth import Permission, Principal
 
 router = APIRouter(prefix="/api/v1/admin/users", tags=["admin"])
 
@@ -42,9 +42,7 @@ async def list_users_endpoint(
     container: Container,
     username: Annotated[str | None, Query(max_length=30)] = None,
     role: Literal["USER", "ADMIN"] | None = None,
-    account_status: Annotated[
-        Literal["active", "blocked"] | None, Query(alias="status")
-    ] = None,
+    account_status: Annotated[Literal["active", "blocked"] | None, Query(alias="status")] = None,
     sort: Literal["created_at", "username"] = "created_at",
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=50)] = 20,
@@ -93,7 +91,9 @@ async def block_endpoint(
 @router.post(
     "/{user_id}/unblock", status_code=status.HTTP_204_NO_CONTENT, summary="Unblock an account"
 )
-async def unblock_endpoint(user_id: uuid.UUID, admin: CanManageUsers, container: Container) -> Response:
+async def unblock_endpoint(
+    user_id: uuid.UUID, admin: CanManageUsers, container: Container
+) -> Response:
     async with container.uow() as uow:
         await unblock_user(admin, user_id, uow, container.auth_writer, container.clock)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -13,11 +13,11 @@ from django.conf import settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from innotter_common.auth import StaticKeyProvider, TokenVerifier
-from innotter_core.apps.users.models import UserProfile, UserStatus
+from musicbox_common.auth import StaticKeyProvider, TokenVerifier
+from musicbox_core.apps.users.models import UserProfile, UserStatus
 
-ISSUER = "innotter-identity"
-AUDIENCE = "innotter"
+ISSUER = "musicbox-identity"
+AUDIENCE = "musicbox"
 KID = "test-key"
 
 
@@ -31,12 +31,12 @@ def _verifier(monkeypatch: pytest.MonkeyPatch, signing_key: Ed25519PrivateKey) -
     verifier = TokenVerifier(
         StaticKeyProvider({KID: signing_key.public_key()}), issuer=ISSUER, audience=AUDIENCE
     )
-    monkeypatch.setattr("innotter_core.apps.platform.authentication.get_verifier", lambda: verifier)
+    monkeypatch.setattr("musicbox_core.apps.platform.authentication.get_verifier", lambda: verifier)
 
 
 @pytest.fixture(autouse=True)
 def _clean_redis() -> Iterator[None]:
-    client = redis.Redis.from_url(settings.INNOTTER_REDIS_AUTH_URL)
+    client = redis.Redis.from_url(settings.MUSICBOX_REDIS_AUTH_URL)
     yield
     client.flushdb()
     client.close()
@@ -44,7 +44,7 @@ def _clean_redis() -> Iterator[None]:
 
 @pytest.fixture
 def auth_redis() -> redis.Redis:
-    return redis.Redis.from_url(settings.INNOTTER_REDIS_AUTH_URL)
+    return redis.Redis.from_url(settings.MUSICBOX_REDIS_AUTH_URL)
 
 
 TokenFactory = Callable[..., str]

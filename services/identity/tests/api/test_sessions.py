@@ -1,17 +1,22 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import httpx
 import pytest
+from sqlalchemy import select, update
 
 from conftest import CSRF, PASSWORD, Register, bearer, make_client
+from identity.accounts.model import Account
 from identity.bootstrap import Container, build_container
+from identity.sessions.model import RefreshToken
 from identity.settings import Settings
 
 
 async def refresh_with(client: httpx.AsyncClient, cookie: str | None) -> httpx.Response:
     client.cookies.clear()
     return await client.post(
-        "/api/v1/auth/refresh", headers={**CSRF, "Cookie": f"innotter_rt={cookie}"}
+        "/api/v1/auth/refresh", headers={**CSRF, "Cookie": f"musicbox_rt={cookie}"}
     )
 
 
@@ -27,7 +32,7 @@ async def test_login_by_username_or_email(
 
     assert response.status_code == 200
     assert response.json()["user"]["username"] == "dora"
-    assert "innotter_rt" in response.cookies
+    assert "musicbox_rt" in response.cookies
 
 
 async def test_unknown_user_and_wrong_password_look_the_same(
@@ -35,7 +40,9 @@ async def test_unknown_user_and_wrong_password_look_the_same(
 ) -> None:
     await register("eve")
 
-    wrong = await client.post("/api/v1/auth/login", json={"identifier": "eve", "password": "Nope1234"})
+    wrong = await client.post(
+        "/api/v1/auth/login", json={"identifier": "eve", "password": "Nope1234"}
+    )
     unknown = await client.post(
         "/api/v1/auth/login", json={"identifier": "nobody", "password": "Nope1234"}
     )
@@ -63,14 +70,17 @@ async def test_login_is_throttled_after_repeated_failures(migrated: Settings) ->
         await container.aclose()
 
 
-async def test_refresh_rotates_and_detects_reuse(register: Register, client: httpx.AsyncClient) -> None:
+async def test_refresh_rotates_and_detects_reuse(
+    register: Register, client: httpx.AsyncClient
+) -> None:
     await register("gina")
-    first_cookie = client.cookies.get("innotter_rt")
+    first_cookie = client.cookies.get("musicbox_rt")
 
     rotated = await client.post("/api/v1/auth/refresh", headers=CSRF)
     assert rotated.status_code == 200
-    second_cookie = client.cookies.get("innotter_rt")
-    assert second_cookie and second_cookie != first_cookie
+    second_cookie = client.cookies.get("musicbox_rt")
+    assert second_cookie is not None
+    assert second_cookie != first_cookie
 
     reuse = await refresh_with(client, first_cookie)
     assert reuse.status_code == 401
@@ -92,7 +102,7 @@ async def test_logout_revokes_refresh_and_access_tokens(
     register: Register, client: httpx.AsyncClient
 ) -> None:
     access = (await register("ivy")).json()["access_token"]
-    cookie = client.cookies.get("innotter_rt")
+    cookie = client.cookies.get("musicbox_rt")
     assert (await client.get("/api/v1/account", headers=bearer(access))).status_code == 200
 
     response = await client.post("/api/v1/auth/logout", headers={**CSRF, **bearer(access)})
@@ -104,26 +114,73 @@ async def test_logout_revokes_refresh_and_access_tokens(
     assert again.status_code == 204
 
 
-async def test_refresh_token_is_not_an_access_token(register: Register, client: httpx.AsyncClient) -> None:
+async def test_refresh_token_is_not_an_access_token(
+    register: Register, client: httpx.AsyncClient
+) -> None:
     await register("jack")
-    refresh_token = client.cookies.get("innotter_rt")
+    refresh_token = client.cookies.get("musicbox_rt")
 
     response = await client.get("/api/v1/account", headers=bearer(refresh_token))
 
     assert response.status_code == 401
 
 
-async def test_jwks_exposes_the_verification_key(client: httpx.AsyncClient, container: Container) -> None:
-    from innotter_common.auth import StaticKeyProvider, TokenVerifier, parse_jwks
+async def test_jwks_exposes_the_verification_key(
+    client: httpx.AsyncClient, container: Container
+) -> None:
+    from musicbox_common.auth import StaticKeyProvider, TokenVerifier, parse_jwks
 
     response = await client.get("/.well-known/jwks.json")
     keys = parse_jwks(response.json())
     token = (
         await client.post(
             "/api/v1/auth/register",
-            json={"username": "kim", "email": "kim@example.com", "display_name": "Kim", "password": PASSWORD},
+            json={
+                "username": "kim",
+                "email": "kim@example.com",
+                "display_name": "Kim",
+                "password": PASSWORD,
+            },
         )
     ).json()["access_token"]
 
-    verifier = TokenVerifier(StaticKeyProvider(keys), issuer="innotter-identity", audience="innotter")
+    verifier = TokenVerifier(
+        StaticKeyProvider(keys), issuer="musicbox-identity", audience="musicbox"
+    )
     assert verifier.verify(token).username == "kim"
+
+
+async def test_an_expired_refresh_token_is_rejected_and_the_cookie_cleared(
+    register: Register, client: httpx.AsyncClient, container: Container
+) -> None:
+    await register("ivan")
+    async with container.session_factory() as session, session.begin():
+        await session.execute(update(RefreshToken).values(expires_at=datetime.now(UTC)))
+
+    response = await client.post("/api/v1/auth/refresh", headers=CSRF)
+
+    assert response.status_code == 401
+    assert "Max-Age=0" in response.headers["set-cookie"]
+
+
+async def test_refresh_without_a_cookie_is_401(client: httpx.AsyncClient) -> None:
+    response = await client.post("/api/v1/auth/refresh", headers=CSRF)
+
+    assert response.status_code == 401
+
+
+async def test_a_blocked_accounts_refresh_family_is_revoked(
+    register: Register, client: httpx.AsyncClient, container: Container
+) -> None:
+    await register("jade")
+    async with container.session_factory() as session, session.begin():
+        await session.execute(update(Account).values(status="blocked"))
+
+    first = await client.post("/api/v1/auth/refresh", headers=CSRF)
+
+    assert first.status_code == 401
+    async with container.session_factory() as session:
+        live = (
+            await session.scalars(select(RefreshToken).where(RefreshToken.revoked_at.is_(None)))
+        ).all()
+    assert live == []

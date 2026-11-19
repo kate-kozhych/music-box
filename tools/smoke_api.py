@@ -244,8 +244,52 @@ def main() -> int:
 
     status, body = call("POST", "/api/v1/auth/login", {"identifier": f"{alice}@example.com", "password": PASSWORD})
     step("login alice again -> 200", status == 200, body)
-    status, body = call("GET", "/api/v1/notifications", token=body["access_token"])
+    alice_token = body["access_token"]
+    status, body = call("GET", "/api/v1/notifications", token=alice_token)
     step("alice has no notifications (recipient isolation)", status == 200 and body["items"] == [], body)
+
+    # --- US-008: password change ------------------------------------------------
+    new_password = "Better456"
+    status, body = call(
+        "POST", "/api/v1/account/password",
+        {"current_password": "Wrong1234", "new_password": new_password}, token=alice_token,
+    )
+    step("password change with a wrong current password -> 403", status == 403 and body["code"] == "invalid_current_password", body)
+    status, body = call(
+        "POST", "/api/v1/account/password",
+        {"current_password": PASSWORD, "new_password": new_password}, token=alice_token,
+    )
+    step("password change -> 204", status == 204, body)
+    status, body = call("POST", "/api/v1/auth/login", {"identifier": alice, "password": PASSWORD})
+    step("old password no longer logs in -> 401", status == 401, body)
+    status, body = call("POST", "/api/v1/auth/login", {"identifier": alice, "password": new_password})
+    step("new password logs in -> 200", status == 200, body)
+    alice_token = body["access_token"]
+
+    # --- US-009: account deletion, propagated to Core and Notification ----------
+    status, body = call("DELETE", "/api/v1/account", {"password": "Wrong1234"}, token=alice_token)
+    step("delete with a wrong password -> 403", status == 403, body)
+    status, body = call("DELETE", "/api/v1/account", {"password": new_password}, token=alice_token)
+    step("delete account -> 204", status == 204, body)
+    status, body = call("GET", "/api/v1/account", token=alice_token)
+    step("Identity rejects the deleted user's token -> 401", status == 401, body)
+    status, body = call("GET", f"/api/v1/users/{bob}/followers", token=alice_token)
+    step("Core rejects the deleted user's token via Redis -> 401", status == 401, body)
+    status, body = call("GET", "/api/v1/notifications", token=alice_token)
+    step("Notification rejects the deleted user's token via Redis -> 401", status == 401, body)
+    status, body = call("POST", "/api/v1/auth/refresh", headers={"X-CSRF": "1"})
+    step("refresh after deletion -> 401", status == 401, body)
+    wait_for(
+        "deletion event tombstones the Core projection",
+        lambda: call("GET", f"/api/v1/users/{alice}")[0] == 404,
+    )
+
+    def alice_tombstoned_in_notifications() -> bool:
+        _, page = call("GET", "/api/v1/notifications", token=bob_token)
+        items = page.get("items", []) if isinstance(page, dict) else []
+        return any(n["type"] == "FOLLOW" and n["actor"]["display_name"] == "[deleted]" for n in items)
+
+    wait_for("deletion event tombstones the Notification actor snapshot", alice_tombstoned_in_notifications)
 
     sys.stdout.write("\nAll smoke checks passed.\n")
     return 0

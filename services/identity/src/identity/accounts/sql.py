@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from identity.accounts.model import Account, AccountStatus
@@ -42,10 +42,10 @@ class SqlAccountRepository:
                 .with_for_update()
             )
             return len((await self._session.scalars(stmt)).all())
-        stmt = select(func.count()).where(
+        count_stmt = select(func.count()).where(
             Account.role == "ADMIN", Account.status == AccountStatus.ACTIVE.value
         )
-        return int((await self._session.scalar(stmt)) or 0)
+        return int((await self._session.scalar(count_stmt)) or 0)
 
     async def search(
         self,
@@ -57,7 +57,7 @@ class SqlAccountRepository:
         offset: int,
         limit: int,
     ) -> tuple[Sequence[Account], int]:
-        conditions = []
+        conditions: list[ColumnElement[bool]] = []
         if username:
             escaped = username.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
             conditions.append(Account.username.like(f"%{escaped}%", escape="\\"))
@@ -73,7 +73,9 @@ class SqlAccountRepository:
             if sort == "username"
             else (Account.created_at.desc(), Account.id.desc())
         )
-        total = await self._session.scalar(select(func.count()).select_from(Account).where(*conditions))
+        total = await self._session.scalar(
+            select(func.count()).select_from(Account).where(*conditions)
+        )
         rows = (
             await self._session.scalars(
                 select(Account).where(*conditions).order_by(*order).offset(offset).limit(limit)

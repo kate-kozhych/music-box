@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import uuid
 from datetime import UTC, datetime
@@ -14,8 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import Mapped, mapped_column
 
 from identity.kernel.db import Base
-from innotter_common.events import EXCHANGE, Envelope, new_envelope
-from innotter_common.logging import request_id_var
+from musicbox_common.events import EXCHANGE, Envelope, new_envelope
+from musicbox_common.logging import request_id_var
 
 log = logging.getLogger(__name__)
 
@@ -140,7 +141,5 @@ class OutboxRelay:
             return len(rows)
 
     async def _sleep(self, seconds: float) -> None:
-        try:
+        with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(self._stopping.wait(), timeout=seconds)
-        except TimeoutError:
-            pass

@@ -11,8 +11,8 @@ from identity.administration.handlers import bootstrap_admin
 from identity.bootstrap import build_container
 from identity.sessions.signer import load_or_create_signing_key
 from identity.settings import Settings
-from innotter_common.errors import AppError
-from innotter_common.logging import configure
+from musicbox_common.errors import AppError
+from musicbox_common.logging import configure
 
 log = logging.getLogger("identity.cli")
 
@@ -38,11 +38,17 @@ async def _bootstrap_admin(settings: Settings) -> int:
                 container.clock,
             )
     except AppError as error:
-        log.error("Admin bootstrap failed", extra={"code": error.code.value, "errors": [e.as_dict() for e in error.errors]})
+        log.error(
+            "Admin bootstrap failed",
+            extra={"code": error.code.value, "errors": [e.as_dict() for e in error.errors]},
+        )
         return 2
     finally:
         await container.aclose()
-    log.info("Admin bootstrap done", extra={"created": created, "username": settings.admin_username})
+    log.info(
+        "Admin bootstrap done",
+        extra={"admin_created": created, "username": settings.admin_username},
+    )
     return 0
 
 
@@ -53,7 +59,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("generate-keys", help="Create the Ed25519 signing key if it doesn't exist")
     args = parser.parse_args(argv)
 
-    settings = Settings()  # type: ignore[call-arg]
+    settings = Settings()
     configure("identity-cli", settings.log_level)
     if args.command == "generate-keys":
         key = load_or_create_signing_key(settings.keys_dir)

@@ -1,17 +1,19 @@
-from typing import Annotated
+from fastapi import APIRouter, Request, Response, status
 
-from fastapi import APIRouter, File, Response, UploadFile, status
-
-from identity import avatars
-from identity.accounts.commands import UpdateProfile
+from identity.accounts.commands import ChangePassword, DeleteAccount, UpdateProfile
 from identity.accounts.handlers import (
+    change_password,
+    delete_account,
     get_active_account,
-    remove_avatar,
-    set_avatar,
     update_profile,
 )
-from identity.accounts.schemas import AccountOut, AvatarOut, ProfilePatch
-from identity.web import Container, CurrentPrincipal
+from identity.accounts.schemas import (
+    AccountDeleteRequest,
+    AccountOut,
+    PasswordChangeRequest,
+    ProfilePatch,
+)
+from identity.web import Container, CurrentPrincipal, client_ip
 
 router = APIRouter(prefix="/api/v1/account", tags=["account"])
 
@@ -38,30 +40,53 @@ async def patch_account(
         return AccountOut.of(account)
 
 
-@router.put(
-    "/avatar",
-    response_model=AvatarOut,
-    summary="Upload my avatar: JPEG, PNG or WebP up to 2 MB (US-006, P05)",
+@router.post(
+    "/password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Change my password; my other sessions are signed out (US-008, P06)",
 )
-async def put_avatar(
+async def post_password(
+    body: PasswordChangeRequest,
+    request: Request,
     principal: CurrentPrincipal,
     container: Container,
-    file: Annotated[UploadFile, File(description="JPEG, PNG or WebP image, at most 2 MB")],
-) -> AvatarOut:
-    data = await file.read(avatars.MAX_BYTES + 1)
+) -> Response:
+    cmd = ChangePassword(
+        account_id=principal.user_id,
+        current_password=body.current_password,
+        new_password=body.new_password,
+        client_ip=client_ip(request),
+        session_id=principal.session_id,
+    )
     async with container.uow() as uow:
-        account = await set_avatar(
-            principal.user_id, data, uow, container.avatar_storage, container.clock
-        )
-        return AvatarOut(avatar_url=f"{avatars.URL_PREFIX}{account.avatar_key}")
+        await change_password(cmd, uow, container.hasher, container.throttle, container.clock)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.delete(
-    "/avatar",
+    "",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Remove my avatar; removing twice is safe (US-006, P05)",
+    summary="Delete my account after confirming my password (US-009, P07)",
 )
-async def delete_avatar(principal: CurrentPrincipal, container: Container) -> Response:
+async def delete_my_account(
+    body: AccountDeleteRequest,
+    request: Request,
+    principal: CurrentPrincipal,
+    container: Container,
+) -> Response:
+    cmd = DeleteAccount(
+        account_id=principal.user_id, password=body.password, client_ip=client_ip(request)
+    )
     async with container.uow() as uow:
-        await remove_avatar(principal.user_id, uow, container.avatar_storage, container.clock)
+        await delete_account(
+            cmd,
+            uow,
+            container.hasher,
+            container.throttle,
+            container.auth_writer,
+            container.avatar_storage,
+            container.clock,
+        )
+    # The refresh cookie is scoped to /api/v1/auth and its family is revoked;
+    # the next /auth/refresh answers 401 and clears it.
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -4,9 +4,9 @@ from dataclasses import dataclass
 
 from fastapi import Request
 
-from innotter_common.auth import AsyncAuthStateReader, Principal, TokenVerifier
-from innotter_common.errors import unauthorized
-from innotter_common.logging import user_id_var
+from musicbox_common.auth import AsyncAuthStateReader, Principal, TokenVerifier
+from musicbox_common.errors import unauthorized
+from musicbox_common.logging import user_id_var
 
 BEARER = "bearer"
 
