@@ -13,10 +13,10 @@ from identity.accounts.ports import PasswordHasher
 from identity.administration.model import UserModerationLog
 from identity.kernel.clock import Clock
 from identity.sessions.ports import AuthStateWriter, SessionsUnitOfWork
-from innotter_common.auth import Principal, Role
-from innotter_common.errors import ErrorCode, conflict, not_found
-from innotter_common.events import USER_STATUS_CHANGED, UserStatusChangedV1
-from innotter_common.ids import uuid7
+from musicbox_common.auth import Principal, Role
+from musicbox_common.errors import ErrorCode, conflict, not_found
+from musicbox_common.events import USER_STATUS_CHANGED, UserStatusChangedV1
+from musicbox_common.ids import uuid7
 
 log = logging.getLogger(__name__)
 

@@ -13,7 +13,7 @@ import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
-from innotter_common.auth import ACCESS_TOKEN_TYPE, ALGORITHM
+from musicbox_common.auth import ACCESS_TOKEN_TYPE, ALGORITHM
 
 PRIVATE_KEY_FILE = "signing-key.pem"
 

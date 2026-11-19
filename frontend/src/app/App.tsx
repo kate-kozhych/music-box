@@ -2,7 +2,7 @@
 export function App() {
   return (
     <main>
-      <h1>Innotter</h1>
+      <h1>Musicbox</h1>
       <p>Frontend skeleton (B-01).</p>
     </main>
   );

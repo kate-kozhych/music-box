@@ -3,9 +3,9 @@ from typing import Annotated, Any
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from innotter_common.auth import Permission, Principal
-from innotter_common.errors import forbidden, unauthorized
-from innotter_common.logging import user_id_var
+from musicbox_common.auth import Permission, Principal
+from musicbox_common.errors import forbidden, unauthorized
+from musicbox_common.logging import user_id_var
 
 bearer_scheme = HTTPBearer(auto_error=False, description="Access token from /auth/login")
 

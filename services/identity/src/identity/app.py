@@ -15,8 +15,8 @@ from identity.kernel.outbox import OutboxRelay
 from identity.sessions.http import internal_router as jwks_router
 from identity.sessions.http import router as auth_router
 from identity.settings import Settings
-from innotter_common.adapters.fastapi import install
-from innotter_common.logging import configure
+from musicbox_common.adapters.fastapi import install
+from musicbox_common.logging import configure
 
 log = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ def create_app(settings: Settings | None = None, container: Container | None = N
             await container.aclose()
 
     app = FastAPI(
-        title="Innotter Identity API",
+        title="Musicbox Identity API",
         version=VERSION,
         description="Accounts, sessions (EdDSA JWT + rotating refresh cookie) and user administration.",
         docs_url="/api/v1/auth/docs",

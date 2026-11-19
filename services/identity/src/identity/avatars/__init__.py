@@ -8,7 +8,7 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from innotter_common.errors import file_too_large, unsupported_media_type
+from musicbox_common.errors import file_too_large, unsupported_media_type
 
 log = logging.getLogger(__name__)
 

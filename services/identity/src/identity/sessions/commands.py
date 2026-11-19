@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from innotter_common.auth import Principal
+from musicbox_common.auth import Principal
 
 
 @dataclass(frozen=True, slots=True)

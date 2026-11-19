@@ -11,7 +11,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from identity.sessions.model import RefreshToken
-from innotter_common.auth import deny_key, user_state_key
+from musicbox_common.auth import deny_key, user_state_key
 
 log = logging.getLogger(__name__)
 

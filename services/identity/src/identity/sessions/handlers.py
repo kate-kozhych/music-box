@@ -15,8 +15,8 @@ from identity.kernel.clock import Clock
 from identity.sessions.commands import Login, Logout, Refresh
 from identity.sessions.model import RefreshToken
 from identity.sessions.ports import AuthStateWriter, LoginThrottle, SessionsUnitOfWork, TokenSigner
-from innotter_common.errors import AppError, ErrorCode, rate_limited, unauthorized
-from innotter_common.ids import uuid7
+from musicbox_common.errors import AppError, ErrorCode, rate_limited, unauthorized
+from musicbox_common.ids import uuid7
 
 log = logging.getLogger(__name__)
 

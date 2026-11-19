@@ -5,16 +5,16 @@ from datetime import UTC, datetime
 
 import pytest
 
-from innotter_common.events import (
+from musicbox_common.events import (
     USER_DELETED,
     USER_PROFILE_UPDATED,
     USER_REGISTERED,
     USER_STATUS_CHANGED,
     Envelope,
 )
-from innotter_core.apps.platform.messaging import process_event
-from innotter_core.apps.users.handlers import HANDLERS
-from innotter_core.apps.users.models import UserProfile
+from musicbox_core.apps.platform.messaging import process_event
+from musicbox_core.apps.users.handlers import HANDLERS
+from musicbox_core.apps.users.models import UserProfile
 
 pytestmark = pytest.mark.django_db(transaction=True)
 

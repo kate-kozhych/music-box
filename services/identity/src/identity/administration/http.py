@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from identity.administration.handlers import block_user, list_users, unblock_user
 from identity.web import Container, require
-from innotter_common.auth import Permission, Principal
+from musicbox_common.auth import Permission, Principal
 
 router = APIRouter(prefix="/api/v1/admin/users", tags=["admin"])
 

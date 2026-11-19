@@ -15,10 +15,10 @@ from identity.sessions.handlers import (
     register_and_sign_in,
 )
 from identity.web import Container, bearer_scheme, client_ip
-from innotter_common.auth import Principal
-from innotter_common.errors import AppError, forbidden, rate_limited, unauthorized
+from musicbox_common.auth import Principal
+from musicbox_common.errors import AppError, forbidden, rate_limited, unauthorized
 
-REFRESH_COOKIE = "innotter_rt"
+REFRESH_COOKIE = "musicbox_rt"
 REFRESH_COOKIE_PATH = "/api/v1/auth"
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])

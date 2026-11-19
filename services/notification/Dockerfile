@@ -14,7 +14,7 @@ WORKDIR /app
 
 FROM base AS builder
 RUN pip install "poetry>=2.1,<3"
-COPY packages/innotter-common /app/packages/innotter-common
+COPY packages/musicbox-common /app/packages/musicbox-common
 COPY services/notification/pyproject.toml services/notification/poetry.lock /app/services/notification/
 WORKDIR /app/services/notification
 RUN poetry install --only main --no-root

@@ -16,7 +16,7 @@ from identity.sessions.handlers import SessionDeps
 from identity.sessions.signer import JwtTokenSigner, load_or_create_signing_key
 from identity.sessions.store import RedisAuthStateWriter, RedisLoginThrottle, SqlRefreshTokenStore
 from identity.settings import Settings
-from innotter_common.auth import AsyncAuthStateReader, StaticKeyProvider, TokenVerifier
+from musicbox_common.auth import AsyncAuthStateReader, StaticKeyProvider, TokenVerifier
 
 
 class SqlModerationLog:

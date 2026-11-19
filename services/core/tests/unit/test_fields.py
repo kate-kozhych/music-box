@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from innotter_core.apps.platform.fields import BinaryUUIDField
+from musicbox_core.apps.platform.fields import BinaryUUIDField
 
 
 def test_binary_uuid_round_trip() -> None:

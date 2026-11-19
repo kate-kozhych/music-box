@@ -862,9 +862,9 @@ files = [
 ]
 
 [[package]]
-name = "innotter-common"
+name = "musicbox-common"
 version = "0.1.0"
-description = "Innotter 2.0 shared library: auth verification, event envelope, problem details, cursor pagination, logging. No models, no business rules."
+description = "Musicbox 2.0 shared library: auth verification, event envelope, problem details, cursor pagination, logging. No models, no business rules."
 optional = false
 python-versions = ">=3.13,<3.14"
 groups = ["main"]
@@ -884,7 +884,7 @@ fastapi = ["fastapi (>=0.115,<1)"]
 
 [package.source]
 type = "directory"
-url = "../../packages/innotter-common"
+url = "../../packages/musicbox-common"
 
 [[package]]
 name = "librt"
@@ -2633,4 +2633,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<3.14"
-content-hash = "34858a9187a4546eb1b2f22e04135e9b1bb98a85760f71550338ee4512896db9"
+content-hash = "63d2aaeba2673cf4c96b6e89ecf56a2cdbf81179724bb7a6f31be00d632c8717"

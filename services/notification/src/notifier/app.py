@@ -12,9 +12,9 @@ from fastapi.responses import JSONResponse
 from pymongo import AsyncMongoClient
 from pymongo.errors import PyMongoError
 
-from innotter_common.adapters.fastapi import install
-from innotter_common.auth import AsyncAuthStateReader, JwksClient, TokenVerifier
-from innotter_common.logging import configure
+from musicbox_common.adapters.fastapi import install
+from musicbox_common.auth import AsyncAuthStateReader, JwksClient, TokenVerifier
+from musicbox_common.logging import configure
 from notifier import api
 from notifier.auth import Authenticator
 from notifier.db import ensure_indexes
@@ -67,7 +67,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await redis_auth.aclose()
 
     app = FastAPI(
-        title="Innotter Notification API",
+        title="Musicbox Notification API",
         version=VERSION,
         docs_url="/api/v1/notifications/docs",
         openapi_url="/api/v1/notifications/openapi.json",

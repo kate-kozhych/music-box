@@ -19,7 +19,7 @@ async def test_register_creates_user_and_signs_in(register: Register, container:
     assert body["token_type"] == "Bearer"
     assert body["expires_in"] == 900
     assert "password" not in str(body) and "hash" not in str(body)
-    assert "innotter_rt" in response.cookies
+    assert "musicbox_rt" in response.cookies
     principal = container.verifier.verify(body["access_token"])
     assert principal.username == "ann_1"
 

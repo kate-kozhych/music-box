@@ -14,8 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import Mapped, mapped_column
 
 from identity.kernel.db import Base
-from innotter_common.events import EXCHANGE, Envelope, new_envelope
-from innotter_common.logging import request_id_var
+from musicbox_common.events import EXCHANGE, Envelope, new_envelope
+from musicbox_common.logging import request_id_var
 
 log = logging.getLogger(__name__)
 

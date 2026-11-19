@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from pymongo.errors import DuplicateKeyError
 
-from innotter_common.events import (
+from musicbox_common.events import (
     FOLLOW_CREATED,
     USER_DELETED,
     USER_PROFILE_UPDATED,

@@ -1,4 +1,4 @@
-# Innotter 2.0 — one command per developer task (FR-066, ADR-0008).
+# Musicbox 2.0 — one command per developer task (FR-066, ADR-0008).
 # Run `make help` for the list.
 
 SHELL := /bin/bash
@@ -8,7 +8,7 @@ SHELL := /bin/bash
 COMPOSE      ?= docker compose
 COMPOSE_DEV  := $(COMPOSE) -f compose.yaml -f compose.dev.yaml
 
-PY_LIB       := packages/innotter-common
+PY_LIB       := packages/musicbox-common
 PY_SERVICES  := services/identity services/core services/notification
 PY_PROJECTS  := $(PY_LIB) $(PY_SERVICES)
 FRONTEND     := frontend
@@ -65,7 +65,7 @@ test: test-py test-fe ## Run all unit/integration test suites
 test-py: test-common test-docker ## Python tests: shared library locally, services in Docker
 
 .PHONY: test-common
-test-common: ## pytest for innotter-common (no infrastructure needed)
+test-common: ## pytest for musicbox-common (no infrastructure needed)
 	cd $(PY_LIB) && poetry run pytest
 
 .PHONY: test-docker

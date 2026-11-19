@@ -11,8 +11,8 @@ from identity.administration.handlers import bootstrap_admin
 from identity.bootstrap import build_container
 from identity.sessions.signer import load_or_create_signing_key
 from identity.settings import Settings
-from innotter_common.errors import AppError
-from innotter_common.logging import configure
+from musicbox_common.errors import AppError
+from musicbox_common.logging import configure
 
 log = logging.getLogger("identity.cli")
 

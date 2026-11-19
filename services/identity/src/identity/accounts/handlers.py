@@ -16,7 +16,7 @@ from identity.accounts.model import (
 )
 from identity.accounts.ports import AccountsUnitOfWork, AvatarStorage, PasswordHasher
 from identity.kernel.clock import Clock
-from innotter_common.errors import (
+from musicbox_common.errors import (
     AppError,
     ErrorCode,
     FieldError,
@@ -24,13 +24,13 @@ from innotter_common.errors import (
     unauthorized,
     validation_failed,
 )
-from innotter_common.events import (
+from musicbox_common.events import (
     USER_PROFILE_UPDATED,
     USER_REGISTERED,
     UserProfileUpdatedV1,
     UserRegisteredV1,
 )
-from innotter_common.ids import uuid7
+from musicbox_common.ids import uuid7
 
 
 def _username_taken() -> AppError:

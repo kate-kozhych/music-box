@@ -1,4 +1,4 @@
-# Build context is the repo root (services need packages/innotter-common).
+# Build context is the repo root (services need packages/musicbox-common).
 .git
 .github
 .idea

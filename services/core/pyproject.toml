@@ -1,10 +1,10 @@
 [project]
-name = "innotter-core"
+name = "musicbox-core"
 version = "0.1.0"
-description = "Innotter 2.0 Core Service: music catalog, ratings, reviews, diary, posts, interactions, follows, feed, moderation."
+description = "Musicbox 2.0 Core Service: music catalog, ratings, reviews, diary, posts, interactions, follows, feed, moderation."
 requires-python = ">=3.13,<3.14"
 dependencies = [
-    "innotter-common[django]",
+    "musicbox-common[django]",
     "django>=5.2,<5.3",                # LTS until April 2028
     "djangorestframework>=3.16,<3.17",
     "drf-spectacular>=0.28",
@@ -22,10 +22,10 @@ requires = ["poetry-core>=2.0,<3"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-packages = [{ include = "innotter_core", from = "src" }]
+packages = [{ include = "musicbox_core", from = "src" }]
 
 [tool.poetry.dependencies]
-innotter-common = { path = "../../packages/innotter-common", develop = true }
+musicbox-common = { path = "../../packages/musicbox-common", develop = true }
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3"
@@ -43,7 +43,7 @@ import-linter = ">=2.1,<3"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers --strict-config"
-DJANGO_SETTINGS_MODULE = "innotter_core.config.settings.test"
+DJANGO_SETTINGS_MODULE = "musicbox_core.config.settings.test"
 markers = [
     "integration: needs real MySQL/Redis/RabbitMQ (Compose test services)",
     "api: HTTP-level tests through DRF",
@@ -51,7 +51,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["innotter_core"]
+source = ["musicbox_core"]
 branch = true
 omit = ["*/migrations/*"]
 
@@ -59,7 +59,7 @@ omit = ["*/migrations/*"]
 python_version = "3.13"
 strict = true
 mypy_path = "src"
-packages = ["innotter_core"]
+packages = ["musicbox_core"]
 
 [[tool.mypy.overrides]]
 module = ["pika", "pika.*"]

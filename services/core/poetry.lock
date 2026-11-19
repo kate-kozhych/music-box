@@ -1000,9 +1000,9 @@ files = [
 ]
 
 [[package]]
-name = "innotter-common"
+name = "musicbox-common"
 version = "0.1.0"
-description = "Innotter 2.0 shared library: auth verification, event envelope, problem details, cursor pagination, logging. No models, no business rules."
+description = "Musicbox 2.0 shared library: auth verification, event envelope, problem details, cursor pagination, logging. No models, no business rules."
 optional = false
 python-versions = ">=3.13,<3.14"
 groups = ["main"]
@@ -1023,7 +1023,7 @@ fastapi = ["fastapi (>=0.115,<1)"]
 
 [package.source]
 type = "directory"
-url = "../../packages/innotter-common"
+url = "../../packages/musicbox-common"
 
 [[package]]
 name = "jsonschema"
@@ -2271,4 +2271,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<3.14"
-content-hash = "30b11505751be6bf56b3e4b1dd9c7daf66b91345e5559ba366924e8c4130bc25"
+content-hash = "d709fb516c809d7cf1948bd928279794e55b663ad615657fa33bef2e6132d9bb"
