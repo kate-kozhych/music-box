@@ -4,6 +4,7 @@ import base64
 from typing import Any
 
 import httpx
+import pytest
 import respx
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -31,7 +32,8 @@ def document(*kids: str) -> dict[str, Any]:
 
 
 @respx.mock
-def test_the_first_lookup_fetches_the_document() -> None:
+def test_the_first_lookup_fetches_the_document(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("musicbox_common.auth.tokens.time.monotonic", lambda: 0.0)
     route = respx.get(URL).mock(return_value=httpx.Response(200, json=document("k1")))
 
     key = JwksClient(URL).get_key("k1")
@@ -52,7 +54,11 @@ def test_a_cached_key_is_served_without_a_second_request() -> None:
 
 
 @respx.mock
-def test_an_unknown_kid_triggers_at_most_one_refetch_per_interval() -> None:
+@pytest.mark.parametrize("uptime", [0.0, 1.0, 3599.0, 86400.0])
+def test_an_unknown_kid_triggers_at_most_one_refetch_per_interval(
+    monkeypatch: pytest.MonkeyPatch, uptime: float
+) -> None:
+    monkeypatch.setattr("musicbox_common.auth.tokens.time.monotonic", lambda: uptime)
     route = respx.get(URL).mock(return_value=httpx.Response(200, json=document("k1")))
     client = JwksClient(URL, min_refetch_interval_s=3600.0)
 
@@ -74,6 +80,30 @@ def test_a_rotated_key_is_picked_up_once_the_cache_has_expired() -> None:
     client = JwksClient(URL, cache_ttl_s=0.0, min_refetch_interval_s=0.0)
 
     assert client.get_key("k1") is not None
+    assert client.get_key("k2") is not None
+    assert route.call_count == 2
+
+
+@respx.mock
+def test_an_unknown_key_is_refetched_when_the_interval_elapses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = [0.0]
+    monkeypatch.setattr("musicbox_common.auth.tokens.time.monotonic", lambda: clock[0])
+    route = respx.get(URL).mock(
+        side_effect=[
+            httpx.Response(200, json=document("k1")),
+            httpx.Response(200, json=document("k1", "k2")),
+        ]
+    )
+    client = JwksClient(URL, min_refetch_interval_s=10.0)
+
+    assert client.get_key("k2") is None
+    clock[0] = 9.99
+    assert client.get_key("k2") is None
+    assert route.call_count == 1
+
+    clock[0] = 10.0
     assert client.get_key("k2") is not None
     assert route.call_count == 2
 

@@ -39,7 +39,9 @@ class JwksClient:
         self._ttl = cache_ttl_s
         self._min_interval = min_refetch_interval_s
         self._keys: dict[str, Ed25519PublicKey] = {}
-        self._fetched_at = 0.0
+        # The monotonic clock may start near zero on a freshly booted runner.
+        # No previous fetch must always allow the first request.
+        self._fetched_at = float("-inf")
         self._lock = threading.Lock()
 
     def get_key(self, kid: str) -> Ed25519PublicKey | None:
