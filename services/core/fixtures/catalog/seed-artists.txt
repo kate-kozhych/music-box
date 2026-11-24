@@ -1,0 +1,74 @@
+# Seed queries for `manage.py record_catalog_fixtures` (B-14).
+#
+# These are *search terms*, not data: the recorder runs one release-group
+# search per line to discover artist MBIDs, then browses each artist's
+# albums/EPs. Nothing here is treated as metadata — every stored field comes
+# back from MusicBrainz.
+#
+# The list is deliberately spread across eras, genres and scripts so the
+# offline catalog exercises accent folding, non-Latin titles, multi-artist
+# credits, EPs and secondary types (live, compilation, soundtrack).
+#
+# One line per query; blank lines and `#` comments are ignored.
+
+Björk
+Radiohead
+Kendrick Lamar
+Miles Davis
+John Coltrane
+Fela Kuti
+Aphex Twin
+Nina Simone
+Joni Mitchell
+Kraftwerk
+Sigur Rós
+Buena Vista Social Club
+Ravi Shankar
+Fairuz
+Caetano Veloso
+Tinariwen
+Stereolab
+Portishead
+Massive Attack
+A Tribe Called Quest
+The Beatles
+Talking Heads
+Patti Smith
+Sonic Youth
+Burial
+Four Tet
+Flying Lotus
+Sufjan Stevens
+Arvo Pärt
+Steve Reich
+Ryuichi Sakamoto
+Cornelius
+Shiina Ringo
+Mariya Takeuchi
+Kraftwerk Autobahn
+Cocteau Twins
+My Bloody Valentine
+Slowdive
+Gilberto Gil
+Tom Zé
+Amadou et Mariam
+Ali Farka Touré
+Youssou N'Dour
+Mulatu Astatke
+Dorothy Ashby
+Alice Coltrane
+Pharoah Sanders
+Sun Ra
+Can
+Neu!
+Brian Eno
+Laurie Anderson
+Kate Bush
+PJ Harvey
+Fiona Apple
+Erykah Badu
+D'Angelo
+J Dilla
+Madlib
+MF DOOM
+Little Simz
