@@ -6,11 +6,14 @@ import secrets
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
+from pathlib import Path
 from typing import Any
 
 BASE = (sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080").rstrip("/")
 PASSWORD = "Secret123"
+FIXTURES = Path(__file__).resolve().parent.parent / "services/core/fixtures/catalog/release-groups.json"
 
 jar = http.cookiejar.CookieJar()
 opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
@@ -108,6 +111,45 @@ def wait_for(name: str, predicate: Any, timeout: float = 15.0) -> Any:
     return None
 
 
+def recorded_release_group() -> Any:
+    manifest = FIXTURES.parent / "manifest.json"
+    if not manifest.exists() or json.loads(manifest.read_text(encoding="utf-8")).get("source") != "MusicBrainz":
+        return None
+    return json.loads(FIXTURES.read_text(encoding="utf-8"))["release-groups"][0]
+
+
+def check_seeded_album() -> None:
+    row = recorded_release_group()
+    if row is None:
+        sys.stdout.write("SKIP  seeded album checks: no recorded MusicBrainz fixtures\n")
+        return
+    query = urllib.parse.urlencode({"q": f"{row['title']} {row['artist-credit'][0]['name']}", "size": 50})
+    wait_for(
+        "album search finds a seeded fixture",
+        lambda: row["id"] in [i["mbid"] for i in call("GET", f"/api/v1/albums?{query}")[1].get("items", [])],
+    )
+    status, page = call("GET", f"/api/v1/albums?{query}")
+    step("search reports offline mode and attribution", page["external_status"] == "offline" and page["attribution"]["source"]["name"] == "MusicBrainz", page)
+    item = next(i for i in page["items"] if i["mbid"] == row["id"])
+    step("offline search results carry no remote artwork", item["cover_url"] is None, item)
+    status, album = call("GET", f"/api/v1/albums/{item['id']}")
+    step("album page -> 200", status == 200 and album["title"] == row["title"], album)
+    status, same = call("GET", f"/api/v1/albums/mbid/{row['id']}")
+    step("album by MBID -> the same album", status == 200 and same["id"] == item["id"], same)
+
+
+def check_catalog() -> None:
+    check_seeded_album()
+    status, page = call("GET", "/api/v1/albums?q=homogenic")
+    step("offline search -> 200 + attribution", status == 200 and page["external_status"] == "offline" and "attribution" in page, page)
+    status, body = call("GET", "/api/v1/albums?q=a")
+    step("a one-character query -> 422", status == 422 and body["code"] == "validation_error", body)
+    status, body = call("GET", "/api/v1/albums/mbid/not-an-mbid")
+    step("a malformed MBID -> 422", status == 422, body)
+    status, body = call("GET", "/api/v1/albums/mbid/ffffffff-ffff-4fff-8fff-ffffffffffff")
+    step("an MBID outside the fixtures -> 404 offline", status == 404, body)
+
+
 def main() -> int:
     suffix = secrets.token_hex(3)
     alice, bob = f"alice_{suffix}", f"bob_{suffix}"
@@ -118,6 +160,8 @@ def main() -> int:
     for path in ("/api/v1/auth/docs", "/api/v1/docs", "/api/v1/notifications/docs"):
         status, html = fetch_bytes(path)
         step(f"{path} serves Swagger UI", status == 200 and b"SwaggerUIBundle" in html, status)
+
+    check_catalog()
 
     for user in (alice, bob):
         status, body = call(
