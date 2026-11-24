@@ -206,6 +206,15 @@ services:
       notification: { condition: service_healthy }
     restart: "no"
 
+  seed-catalog:
+    build: *core-build
+    command: ["python", "manage.py", "import_catalog_fixtures"]
+    environment: *core-env
+    networks: [backend]
+    depends_on:
+      migrate-core: { condition: service_completed_successfully }
+    restart: "no"
+
   # --- Services -------------------------------------------------------------
   identity:
     build: *identity-build
@@ -231,6 +240,7 @@ services:
       mysql: { condition: service_healthy }
       redis: { condition: service_healthy }
       migrate-core: { condition: service_completed_successfully }
+      seed-catalog: { condition: service_completed_successfully }
       identity: { condition: service_healthy }
     restart: unless-stopped
 

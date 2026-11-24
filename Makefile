@@ -128,9 +128,10 @@ reset: ## Stop the stack and DELETE all volumes (databases, keys, avatars)
 	$(COMPOSE) down -v --remove-orphans
 
 .PHONY: seed
-seed: ## Run the idempotent seed job (admin, demo users, catalog fixtures)
+seed: ## Run the idempotent seed jobs (admin account, catalog fixtures)
 	$(require_compose)
 	$(COMPOSE) run --rm seed
+	$(COMPOSE) run --rm seed-catalog
 
 # --- Evaluation --------------------------------------------------------------
 

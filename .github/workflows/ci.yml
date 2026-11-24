@@ -301,7 +301,7 @@ jobs:
           cp .env.example .env
           docker compose up --build -d --wait --wait-timeout 600
       - name: Seed
-        run: docker compose run --rm seed
+        run: docker compose run --rm seed && docker compose run --rm seed-catalog
       - name: Smoke test through the gateway
         run: python3 tools/smoke_api.py http://localhost:8080
       - name: Logs on failure
