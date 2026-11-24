@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from django.core.exceptions import ImproperlyConfigured
+
 from musicbox_common.logging import configure
 from musicbox_core.config.env import CoreEnv
 
@@ -111,6 +113,14 @@ MUSICBOX_REDIS_AUTH_URL = ENV.redis_auth_url
 MUSICBOX_AMQP_URL = ENV.amqp_url.get_secret_value()
 MUSICBOX_CONSUMER_HEARTBEAT_FILE = ENV.consumer_heartbeat_file
 MUSICBOX_CATALOG_MODE = ENV.catalog_mode
+MUSICBOX_REDIS_CACHE_URL = ENV.redis_cache_url
+MUSICBOX_MB_USER_AGENT_CONTACT = ENV.mb_user_agent_contact
+MUSICBOX_MB_TTL_DAYS = ENV.mb_ttl_days
+
+if MUSICBOX_CATALOG_MODE == "live" and not MUSICBOX_MB_USER_AGENT_CONTACT.strip():
+    raise ImproperlyConfigured(
+        "CORE_MB_USER_AGENT_CONTACT is required when CORE_CATALOG_MODE=live (NFR-061)."
+    )
 
 LOGGING_CONFIG = None
 

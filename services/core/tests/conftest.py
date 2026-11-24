@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import socket
 import time
 import uuid
 from collections.abc import Callable, Iterator
+from pathlib import Path
 from typing import Any
 
 import jwt
@@ -12,6 +14,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from django.conf import settings
 from django.utils import timezone
 from rest_framework.test import APIClient
+from tests.fixture_dataset import write_dataset
 
 from musicbox_common.auth import StaticKeyProvider, TokenVerifier
 from musicbox_core.apps.users.models import UserProfile, UserStatus
@@ -19,6 +22,35 @@ from musicbox_core.apps.users.models import UserProfile, UserStatus
 ISSUER = "musicbox-identity"
 AUDIENCE = "musicbox"
 KID = "test-key"
+
+
+ALLOWED_HOSTS = frozenset(
+    {"127.0.0.1", "::1", "localhost", "mysql", "redis", "rabbitmq", "postgres", ""}
+)
+
+
+class NetworkBlockedError(RuntimeError):
+    pass
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _no_external_network() -> Iterator[None]:
+    original = socket.getaddrinfo
+
+    def guarded(host: Any, port: Any, *args: Any, **kwargs: Any) -> Any:
+        name = host.decode() if isinstance(host, bytes) else host
+        if name is not None and str(name) not in ALLOWED_HOSTS:
+            raise NetworkBlockedError(
+                f"Blocked a lookup of {name!r}. Tests must use respx or the "
+                "offline fixtures (NFR-027)."
+            )
+        return original(host, port, *args, **kwargs)
+
+    socket.getaddrinfo = guarded  # type: ignore[assignment]
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = original  # type: ignore[assignment]
 
 
 @pytest.fixture(scope="session")
@@ -98,3 +130,10 @@ def api() -> APIClient:
 def auth(client: APIClient, token: str) -> APIClient:
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
     return client
+
+
+@pytest.fixture
+def catalog_fixtures(tmp_path: Path, settings: Any) -> Path:
+    directory = write_dataset(tmp_path)
+    settings.MUSICBOX_CATALOG_FIXTURES_DIR = str(directory)
+    return directory
