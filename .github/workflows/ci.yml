@@ -287,6 +287,28 @@ jobs:
       - working-directory: frontend
         run: npm test
 
+  contracts:
+    name: Contracts — OpenAPI documents (NFR-075)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install libmysqlclient headers
+        run: sudo apt-get update && sudo apt-get install -y default-libmysqlclient-dev pkg-config
+      - uses: ./.github/actions/poetry-install
+        with:
+          project: services/identity
+      - uses: ./.github/actions/poetry-install
+        with:
+          project: services/core
+      - uses: ./.github/actions/poetry-install
+        with:
+          project: services/notification
+      - name: OpenAPI documents are current
+        run: make contracts-check
+
   compose-smoke:
     name: Compose stack + smoke (US-044, US-046)
     runs-on: ubuntu-latest

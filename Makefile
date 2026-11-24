@@ -57,6 +57,10 @@ format: ## Auto-format Python (Ruff) and frontend (Prettier) sources
 	@for p in $(PY_PROJECTS); do (cd $$p && poetry run ruff check --fix . && poetry run ruff format .); done
 	cd $(FRONTEND) && npm run format
 
+.PHONY: contracts-check
+contracts-check: ## Fail if the committed OpenAPI documents are stale (NFR-075)
+	python3 tools/export_openapi.py --check
+
 # --- Tests -------------------------------------------------------------------
 
 .PHONY: test
