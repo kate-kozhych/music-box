@@ -260,7 +260,7 @@ services:
        "--schedule=/tmp/celerybeat-schedule", "--loglevel=INFO",
        "--concurrency=2", "--queues=core", "--without-gossip", "--without-mingle"]
     environment: *core-env
-    networks: [backend]
+    networks: [edge, backend]
     healthcheck:
       test: ["CMD-SHELL", 'celery -A musicbox_core.config.celery inspect ping --destination "celery@$$HOSTNAME" --timeout 10']
       interval: 15s
@@ -344,6 +344,8 @@ services:
       CORE_DB_USER: root
       CORE_DB_PASSWORD: ${CORE_DB_ROOT_PASSWORD:?set CORE_DB_ROOT_PASSWORD in .env}
       CORE_REDIS_AUTH_URL: redis://redis:6379/15
+      CORE_REDIS_CACHE_URL: redis://redis:6379/11
+      CORE_CATALOG_MODE: offline
     networks: [backend]
     depends_on:
       mysql: { condition: service_healthy }
