@@ -16,9 +16,13 @@ MAX_LIMIT = 50
 class Cursor:
     t: datetime
     id: str
+    key: str | None = None
 
     def encode(self) -> str:
-        raw = json.dumps({"t": self.t.isoformat(), "id": self.id}, separators=(",", ":"))
+        data = {"t": self.t.isoformat(), "id": self.id}
+        if self.key is not None:
+            data["key"] = self.key
+        raw = json.dumps(data, separators=(",", ":"))
         return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
 
     @classmethod
@@ -26,8 +30,13 @@ class Cursor:
         try:
             padded = value + "=" * (-len(value) % 4)
             data = json.loads(base64.urlsafe_b64decode(padded.encode()))
-            return cls(t=datetime.fromisoformat(data["t"]), id=str(data["id"]))
-        except (ValueError, KeyError, TypeError, binascii.Error) as exc:
+            key = data.get("key")
+            return cls(
+                t=datetime.fromisoformat(data["t"]),
+                id=str(data["id"]),
+                key=None if key is None else str(key),
+            )
+        except (ValueError, KeyError, TypeError, AttributeError, binascii.Error) as exc:
             raise validation_failed(
                 [FieldError("cursor", "invalid", "The cursor is malformed.")]
             ) from exc

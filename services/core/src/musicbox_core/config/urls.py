@@ -11,6 +11,9 @@ urlpatterns = [
     path("api/v1/schema", SpectacularAPIView.as_view(), name="schema"),
     path("api/v1/docs", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path("api/v1/", include("musicbox_core.apps.catalog.api.urls")),
+    path("api/v1/", include("musicbox_core.apps.ratings.api.urls")),
+    path("api/v1/", include("musicbox_core.apps.reviews.api.urls")),
+    path("api/v1/", include("musicbox_core.apps.diary.api.urls")),
     path("api/v1/", include("musicbox_core.apps.profiles.api.urls")),
     path("api/v1/", include("musicbox_core.apps.social.api.urls")),
 ]

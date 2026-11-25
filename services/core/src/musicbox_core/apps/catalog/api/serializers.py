@@ -70,6 +70,49 @@ class ViewerStateSerializer(serializers.Serializer):  # type: ignore[type-arg]
     diary_count = serializers.IntegerField()
 
 
+class AlbumSummarySerializer(serializers.Serializer):  # type: ignore[type-arg]
+    id = serializers.CharField()
+    mbid = serializers.CharField()
+    title = serializers.CharField()
+    artist_credit = serializers.CharField()
+    year = serializers.IntegerField(allow_null=True)
+    type = serializers.CharField()
+    cover_url = serializers.CharField(allow_null=True)
+
+
+class DiscoverAlbumSerializer(AlbumSummarySerializer):
+    average = serializers.FloatField(allow_null=True)
+    rating_count = serializers.IntegerField()
+
+
+class DiscoverAlbumPageSerializer(serializers.Serializer):  # type: ignore[type-arg]
+    items = DiscoverAlbumSerializer(many=True)
+    page = serializers.IntegerField()
+    size = serializers.IntegerField()
+    total = serializers.IntegerField()
+    attribution = AttributionSerializer()
+
+
+class RecentReviewAuthorSerializer(serializers.Serializer):  # type: ignore[type-arg]
+    user_id = serializers.UUIDField()
+    username = serializers.CharField()
+    display_name = serializers.CharField()
+    avatar_url = serializers.CharField(allow_null=True)
+
+
+class RecentReviewSerializer(serializers.Serializer):  # type: ignore[type-arg]
+    id = serializers.CharField()
+    author = RecentReviewAuthorSerializer()
+    rating = serializers.FloatField(allow_null=True)
+    body = serializers.CharField()
+    truncated = serializers.BooleanField()
+    like_count = serializers.IntegerField()
+    comment_count = serializers.IntegerField()
+    created_at = serializers.DateTimeField()
+    edited = serializers.BooleanField()
+    hidden = serializers.BooleanField()
+
+
 class AlbumDetailSerializer(serializers.Serializer):  # type: ignore[type-arg]
     id = serializers.CharField()
     mbid = serializers.CharField()
@@ -84,7 +127,7 @@ class AlbumDetailSerializer(serializers.Serializer):  # type: ignore[type-arg]
     cover_url = serializers.CharField(allow_null=True)
     cover_url_500 = serializers.CharField(allow_null=True)
     stats = AlbumStatsSerializer()
-    recent_reviews = serializers.ListField(child=serializers.DictField())
+    recent_reviews = RecentReviewSerializer(many=True)
     viewer = ViewerStateSerializer()
     source = SourceSerializer()  # type: ignore[assignment]
     attribution = AttributionSerializer()

@@ -22,6 +22,9 @@ INSTALLED_APPS = [
     "musicbox_core.apps.platform",
     "musicbox_core.apps.users",
     "musicbox_core.apps.catalog",
+    "musicbox_core.apps.ratings",
+    "musicbox_core.apps.reviews",
+    "musicbox_core.apps.diary",
     "musicbox_core.apps.social",
     "musicbox_core.apps.profiles",
 ]
@@ -51,6 +54,7 @@ DATABASES = {
         "CONN_HEALTH_CHECKS": True,
         "OPTIONS": {
             "charset": "utf8mb4",
+            "binary_prefix": True,
             "init_command": "SET sql_mode='STRICT_TRANS_TABLES', time_zone='+00:00'",
             "isolation_level": "read committed",
         },

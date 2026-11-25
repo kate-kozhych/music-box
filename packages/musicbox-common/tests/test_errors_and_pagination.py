@@ -67,3 +67,16 @@ def test_uuid7_is_version_7_and_time_ordered() -> None:
     assert first.version == 7
     assert first.variant == "specified in RFC 4122"
     assert first.bytes[:6] <= second.bytes[:6]
+
+
+def test_a_cursor_keeps_its_optional_sort_key() -> None:
+    plain = Cursor(t=datetime.now(UTC), id="a")
+    keyed = Cursor(t=plain.t, id="a", key="7")
+
+    assert Cursor.decode(plain.encode()) == plain
+    assert Cursor.decode(keyed.encode()) == keyed
+
+
+def test_a_cursor_that_is_not_an_object_is_rejected() -> None:
+    with pytest.raises(AppError):
+        Cursor.decode("W10")

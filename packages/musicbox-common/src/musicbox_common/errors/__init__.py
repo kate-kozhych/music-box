@@ -20,6 +20,8 @@ class ErrorCode(StrEnum):
     METHOD_NOT_ALLOWED = "method_not_allowed"
     USERNAME_TAKEN = "username_taken"
     REGISTRATION_CONFLICT = "registration_conflict"
+    REVIEW_EXISTS = "review_exists"
+    CONTENT_HIDDEN = "content_hidden"
     SELF_FOLLOW = "self_follow"
     LAST_ADMIN = "last_admin"
     CANNOT_BLOCK_SELF = "cannot_block_self"
@@ -47,6 +49,8 @@ _TITLES: dict[ErrorCode, str] = {
     ErrorCode.METHOD_NOT_ALLOWED: "Method not allowed",
     ErrorCode.USERNAME_TAKEN: "Username taken",
     ErrorCode.REGISTRATION_CONFLICT: "Registration conflict",
+    ErrorCode.REVIEW_EXISTS: "Review already exists",
+    ErrorCode.CONTENT_HIDDEN: "Content hidden",
     ErrorCode.SELF_FOLLOW: "Cannot follow yourself",
     ErrorCode.LAST_ADMIN: "Last administrator",
     ErrorCode.CANNOT_BLOCK_SELF: "Cannot block yourself",

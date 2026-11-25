@@ -7,12 +7,15 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from musicbox_common.auth import Principal
+from musicbox_common.errors import ErrorCode, unauthorized
 from musicbox_common.events import (
     UserDeletedV1,
     UserProfileUpdatedV1,
     UserRegisteredV1,
     UserStatusChangedV1,
 )
+from musicbox_core.apps.platform.domain_events import dispatch
+from musicbox_core.apps.users.events import UserVisibilityChanged
 from musicbox_core.apps.users.models import UserProfile, UserStatus
 
 
@@ -25,6 +28,14 @@ def ensure_profile(principal: Principal) -> UserProfile:
             user_id=profile.user_id, username=profile.username, status=UserStatus.ACTIVE
         ).update(username=principal.username)
         profile.refresh_from_db()
+    return profile
+
+
+def lock_active_profile(principal: Principal) -> UserProfile:
+    ensure_profile(principal)
+    profile = UserProfile.objects.select_for_update().get(user_id=principal.user_id)
+    if not profile.is_active:
+        raise unauthorized(ErrorCode.TOKEN_INVALID, "The account is not active.")
     return profile
 
 
@@ -94,9 +105,12 @@ def apply_status_changed(event: UserStatusChangedV1) -> None:
         return
     if profile.status_changed_at is not None and event.changed_at <= profile.status_changed_at:
         return
+    changed = profile.status != event.status
     profile.status = event.status
     profile.status_changed_at = event.changed_at
     profile.save()
+    if changed:
+        dispatch(UserVisibilityChanged(event.user_id))
 
 
 def tombstone_username(user_id: uuid.UUID) -> str:
@@ -112,3 +126,4 @@ def apply_deleted(event: UserDeletedV1) -> None:
     profile.bio = ""
     profile.avatar_url = None
     profile.save()
+    dispatch(UserVisibilityChanged(event.user_id))
