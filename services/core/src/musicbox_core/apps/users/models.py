@@ -18,6 +18,7 @@ class UserProfile(models.Model):
     bio = models.CharField(max_length=300, blank=True, default="")
     avatar_url = models.CharField(max_length=500, null=True, blank=True)
     status = models.CharField(max_length=10, choices=UserStatus.choices, default=UserStatus.ACTIVE)
+    status_changed_at = models.DateTimeField(null=True, blank=True)
     profile_version = models.PositiveIntegerField(default=0)
     joined_at = models.DateTimeField()
     updated_at = models.DateTimeField(auto_now=True)

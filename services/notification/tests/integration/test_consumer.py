@@ -9,6 +9,7 @@ from pymongo.errors import DuplicateKeyError
 
 from musicbox_common.events import (
     FOLLOW_CREATED,
+    PAYLOADS,
     USER_DELETED,
     USER_PROFILE_UPDATED,
     USER_REGISTERED,
@@ -372,3 +373,78 @@ async def test_dedupe_key_is_unique_in_the_database(db: Database) -> None:
     await db[NOTIFICATIONS].insert_one(dict(document))
     with pytest.raises(DuplicateKeyError):
         await db[NOTIFICATIONS].insert_one(dict(document))
+
+
+def deleted_event(user_id: uuid.UUID) -> Envelope:
+    return event(
+        USER_DELETED,
+        {"user_id": str(user_id), "deleted_at": datetime.now(UTC).isoformat()},
+        producer="identity",
+    )
+
+
+def registered_event(user_id: uuid.UUID, version: int = 1) -> Envelope:
+    return event(
+        USER_REGISTERED,
+        {
+            "user_id": str(user_id),
+            "username": "alice",
+            "display_name": "Alice",
+            "profile_version": version,
+        },
+        producer="identity",
+    )
+
+
+def profile_updated_event(user_id: uuid.UUID, version: int) -> Envelope:
+    return event(
+        USER_PROFILE_UPDATED,
+        {"user_id": str(user_id), "display_name": "Alice B.", "profile_version": version},
+        producer="identity",
+    )
+
+
+@pytest.mark.parametrize("known_first", [True, False])
+async def test_late_events_never_restore_a_deleted_user(db: Database, known_first: bool) -> None:
+    alice = uuid.uuid4()
+    if known_first:
+        await snapshots.ensure_placeholder(db, alice)
+    for late in (deleted_event(alice), registered_event(alice, 5), profile_updated_event(alice, 6)):
+        await process_event(db, late, IDENTITY_HANDLERS)
+
+    snapshot = await db[USER_SNAPSHOTS].find_one({"_id": str(alice)})
+    assert snapshot is not None
+    assert snapshot["status"] == "deleted"
+    assert snapshot["username"] == f"~{alice.hex}"
+    assert snapshot["display_name"] == "[deleted]"
+
+
+async def test_a_profile_update_that_overtakes_the_registration_is_kept(db: Database) -> None:
+    alice = uuid.uuid4()
+    for envelope in (profile_updated_event(alice, 2), registered_event(alice)):
+        await process_event(db, envelope, IDENTITY_HANDLERS)
+
+    actors = await snapshots.get_many(db, [alice])
+    actor = snapshots.as_actor(str(alice), actors[str(alice)])
+    assert (actor["username"], actor["display_name"]) == ("alice", "Alice B.")
+    assert actors[str(alice)]["status"] == "active"
+
+
+async def test_a_block_that_overtakes_the_registration_is_kept(db: Database) -> None:
+    alice = uuid.uuid4()
+    blocked = event(
+        USER_STATUS_CHANGED,
+        {"user_id": str(alice), "status": "blocked", "changed_at": datetime.now(UTC).isoformat()},
+        producer="identity",
+    )
+    for envelope in (blocked, registered_event(alice)):
+        await process_event(db, envelope, IDENTITY_HANDLERS)
+
+    snapshot = await db[USER_SNAPSHOTS].find_one({"_id": str(alice)})
+    assert snapshot is not None
+    assert (snapshot["status"], snapshot["username"]) == ("blocked", "alice")
+
+
+def test_every_handled_event_has_a_contract() -> None:
+    handled = {**IDENTITY_HANDLERS, **CORE_HANDLERS}
+    assert set(handled) == set(PAYLOADS)

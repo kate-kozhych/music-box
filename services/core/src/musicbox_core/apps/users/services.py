@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import uuid
 from datetime import datetime
 
@@ -16,13 +15,20 @@ from musicbox_common.events import (
 )
 from musicbox_core.apps.users.models import UserProfile, UserStatus
 
-log = logging.getLogger(__name__)
-
 
 def ensure_profile(principal: Principal) -> UserProfile:
     profile = UserProfile.objects.filter(user_id=principal.user_id).first()
-    if profile is not None:
-        return profile
+    if profile is None:
+        profile = _create_from_claims(principal)
+    if _awaits_registration(profile):
+        UserProfile.objects.filter(
+            user_id=profile.user_id, username=profile.username, status=UserStatus.ACTIVE
+        ).update(username=principal.username)
+        profile.refresh_from_db()
+    return profile
+
+
+def _create_from_claims(principal: Principal) -> UserProfile:
     try:
         with transaction.atomic():
             return UserProfile.objects.create(
@@ -36,50 +42,61 @@ def ensure_profile(principal: Principal) -> UserProfile:
         return UserProfile.objects.get(user_id=principal.user_id)
 
 
+def _awaits_registration(profile: UserProfile) -> bool:
+    return profile.status != UserStatus.DELETED and profile.username == tombstone_username(
+        profile.user_id
+    )
+
+
+def _locked_profile(user_id: uuid.UUID) -> UserProfile:
+    profile, _ = UserProfile.objects.select_for_update().get_or_create(
+        user_id=user_id,
+        defaults={
+            "username": tombstone_username(user_id),
+            "display_name": "",
+            "profile_version": 0,
+            "joined_at": timezone.now(),
+        },
+    )
+    return profile
+
+
 def apply_registered(event: UserRegisteredV1, occurred_at: datetime) -> None:
-    profile = UserProfile.objects.select_for_update().filter(user_id=event.user_id).first()
-    if profile is None:
-        UserProfile.objects.create(
-            user_id=event.user_id,
-            username=event.username,
-            display_name=event.display_name,
-            avatar_url=event.avatar_url,
-            profile_version=event.profile_version,
-            joined_at=occurred_at,
-        )
+    profile = _locked_profile(event.user_id)
+    if profile.status == UserStatus.DELETED:
         return
-    if event.profile_version > profile.profile_version:
-        profile.username = event.username
+    newer = event.profile_version > profile.profile_version
+    if not newer and not _awaits_registration(profile):
+        return
+    profile.username = event.username
+    profile.joined_at = min(profile.joined_at, occurred_at)
+    if newer:
         profile.display_name = event.display_name
         profile.avatar_url = event.avatar_url
         profile.profile_version = event.profile_version
-        profile.joined_at = min(profile.joined_at, occurred_at)
-        profile.save()
+    profile.save()
 
 
 def apply_profile_updated(event: UserProfileUpdatedV1) -> None:
-    profile = UserProfile.objects.select_for_update().filter(user_id=event.user_id).first()
-    if profile is None:
-        log.warning("profile_updated for unknown user", extra={"user_id": str(event.user_id)})
+    profile = _locked_profile(event.user_id)
+    if profile.status == UserStatus.DELETED or event.profile_version <= profile.profile_version:
         return
-    if event.profile_version > profile.profile_version:
-        profile.display_name = event.display_name
-        profile.bio = event.bio
-        profile.avatar_url = event.avatar_url
-        profile.profile_version = event.profile_version
-        profile.save(
-            update_fields=["display_name", "bio", "avatar_url", "profile_version", "updated_at"]
-        )
+    profile.display_name = event.display_name
+    profile.bio = event.bio
+    profile.avatar_url = event.avatar_url
+    profile.profile_version = event.profile_version
+    profile.save()
 
 
 def apply_status_changed(event: UserStatusChangedV1) -> None:
-    updated = (
-        UserProfile.objects.filter(user_id=event.user_id)
-        .exclude(status=UserStatus.DELETED)
-        .update(status=event.status, updated_at=timezone.now())
-    )
-    if not updated:
-        log.warning("status_changed for unknown user", extra={"user_id": str(event.user_id)})
+    profile = _locked_profile(event.user_id)
+    if profile.status == UserStatus.DELETED:
+        return
+    if profile.status_changed_at is not None and event.changed_at <= profile.status_changed_at:
+        return
+    profile.status = event.status
+    profile.status_changed_at = event.changed_at
+    profile.save()
 
 
 def tombstone_username(user_id: uuid.UUID) -> str:
@@ -87,11 +104,11 @@ def tombstone_username(user_id: uuid.UUID) -> str:
 
 
 def apply_deleted(event: UserDeletedV1) -> None:
-    UserProfile.objects.filter(user_id=event.user_id).update(
-        status=UserStatus.DELETED,
-        username=tombstone_username(event.user_id),
-        display_name="[deleted]",
-        bio="",
-        avatar_url=None,
-        updated_at=timezone.now(),
-    )
+    profile = _locked_profile(event.user_id)
+    profile.status = UserStatus.DELETED
+    profile.status_changed_at = event.deleted_at
+    profile.username = tombstone_username(event.user_id)
+    profile.display_name = "[deleted]"
+    profile.bio = ""
+    profile.avatar_url = None
+    profile.save()

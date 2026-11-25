@@ -26,8 +26,15 @@ async def _upsert_if_newer(
 ) -> bool:
     try:
         result = await db[USER_SNAPSHOTS].update_one(
-            {"_id": str(user_id), "profile_version": {"$lt": version}},
-            {"$set": {**fields, "profile_version": version}, "$setOnInsert": {"_id": str(user_id)}},
+            {
+                "_id": str(user_id),
+                "profile_version": {"$lt": version},
+                "status": {"$ne": STATUS_DELETED},
+            },
+            {
+                "$set": {**fields, "profile_version": version},
+                "$setOnInsert": {"status": STATUS_ACTIVE},
+            },
             upsert=True,
         )
     except DuplicateKeyError:
@@ -36,7 +43,7 @@ async def _upsert_if_newer(
 
 
 async def apply_registered(db: Database, event: UserRegisteredV1) -> bool:
-    return await _upsert_if_newer(
+    applied = await _upsert_if_newer(
         db,
         event.user_id,
         event.profile_version,
@@ -44,9 +51,19 @@ async def apply_registered(db: Database, event: UserRegisteredV1) -> bool:
             "username": event.username,
             "display_name": event.display_name,
             "avatar_url": event.avatar_url,
-            "status": STATUS_ACTIVE,
         },
     )
+    if applied:
+        return True
+    result = await db[USER_SNAPSHOTS].update_one(
+        {
+            "_id": str(event.user_id),
+            "username": {"$exists": False},
+            "status": {"$ne": STATUS_DELETED},
+        },
+        {"$set": {"username": event.username}},
+    )
+    return bool(result.modified_count)
 
 
 async def apply_profile_updated(db: Database, event: UserProfileUpdatedV1) -> bool:
@@ -59,6 +76,7 @@ async def apply_profile_updated(db: Database, event: UserProfileUpdatedV1) -> bo
 
 
 async def apply_status_changed(db: Database, event: UserStatusChangedV1) -> bool:
+    await ensure_placeholder(db, event.user_id)
     result = await db[USER_SNAPSHOTS].update_one(
         {
             "_id": str(event.user_id),
