@@ -80,6 +80,19 @@ class AlbumSummarySerializer(serializers.Serializer):  # type: ignore[type-arg]
     cover_url = serializers.CharField(allow_null=True)
 
 
+class DiscoverAlbumSerializer(AlbumSummarySerializer):
+    average = serializers.FloatField(allow_null=True)
+    rating_count = serializers.IntegerField()
+
+
+class DiscoverAlbumPageSerializer(serializers.Serializer):  # type: ignore[type-arg]
+    items = DiscoverAlbumSerializer(many=True)
+    page = serializers.IntegerField()
+    size = serializers.IntegerField()
+    total = serializers.IntegerField()
+    attribution = AttributionSerializer()
+
+
 class RecentReviewAuthorSerializer(serializers.Serializer):  # type: ignore[type-arg]
     user_id = serializers.UUIDField()
     username = serializers.CharField()

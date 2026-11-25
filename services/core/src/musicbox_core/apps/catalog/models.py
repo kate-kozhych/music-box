@@ -175,6 +175,11 @@ class AlbumRatingStats(models.Model):
                 name="album_rating_stats_non_negative",
             )
         ]
+        indexes: ClassVar[list[models.Index]] = [
+            models.Index(
+                fields=["rating_count", "rating_sum", "album"], name="album_stats_popular_idx"
+            )
+        ]
 
     @property
     def distribution(self) -> list[int]:

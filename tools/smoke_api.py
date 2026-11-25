@@ -175,6 +175,8 @@ def check_music_logging(album_id: str, username: str, token: str) -> None:
     _, page = call("GET", f"/api/v1/users/{username}/diary")
     step("guests see only public entries", [i["id"] for i in page["items"]] == [entries[0]["id"]], page)
     _, body = call("GET", f"/api/v1/users/{username}")
+    status, page = call("GET", "/api/v1/discover/albums?sort=popular&size=50")
+    step("guests browse popular albums, rated first", status == 200 and album_id in [i["id"] for i in page["items"]] and page["items"][0]["rating_count"] > 0, page)
     counts = [body["counts"][name] for name in ("ratings", "reviews", "diary_entries")]
     step("profile counts exclude private entries", counts == [1, 1, 1], body)
 

@@ -17,10 +17,19 @@ from musicbox_common.errors import (
     not_found,
     validation_failed,
 )
-from musicbox_core.apps.catalog import album_page, attribution, search, selectors, services, tasks
+from musicbox_core.apps.catalog import (
+    album_page,
+    attribution,
+    discovery,
+    search,
+    selectors,
+    services,
+    tasks,
+)
 from musicbox_core.apps.catalog.api.serializers import (
     AlbumDetailSerializer,
     AlbumSearchPageSerializer,
+    DiscoverAlbumPageSerializer,
 )
 from musicbox_core.apps.catalog.coverart import SIZE_250, front_url
 from musicbox_core.apps.catalog.mapping import is_mbid
@@ -73,6 +82,34 @@ class AlbumSearchView(APIView):
             "attribution": attribution.notice(),
         }
         return Response(AlbumSearchPageSerializer(payload).data)
+
+
+class DiscoverAlbumsView(APIView):
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("sort", OpenApiTypes.STR, enum=list(discovery.SORTS)),
+            OpenApiParameter("page", OpenApiTypes.INT, description="1-based, default 1"),
+            OpenApiParameter("size", OpenApiTypes.INT, description="1-50, default 20"),
+        ],
+        responses=DiscoverAlbumPageSerializer,
+        operation_id="discover_albums_list",
+        summary="Popular albums (most rated first; unrated albums by newest release)",
+        tags=["catalog"],
+    )
+    def get(self, request: Request) -> Response:
+        discovery.parse_sort(request.query_params.get("sort"))
+        result = discovery.popular_albums(
+            page=search.parse_page(request.query_params.get("page")),
+            size=search.parse_size(request.query_params.get("size")),
+        )
+        payload = {
+            "items": [_discover_item(album) for album in result.items],
+            "page": result.page,
+            "size": result.size,
+            "total": result.total,
+            "attribution": attribution.notice(),
+        }
+        return Response(DiscoverAlbumPageSerializer(payload).data)
 
 
 class AlbumDetailView(APIView):
@@ -128,6 +165,15 @@ def _import_album(mbid: str) -> Album:
         raise AppError(404, ErrorCode.UNKNOWN_ALBUM, "No such album.") from exc
     except MetadataUnavailableError as exc:
         raise catalog_unavailable(exc.retry_after) from exc
+
+
+def _discover_item(album: Album) -> dict[str, Any]:
+    stats = selectors.rating_stats(album)
+    return {
+        **selectors.album_summary(album),
+        "average": stats["average"],
+        "rating_count": stats["count"],
+    }
 
 
 def _hit_cover_url(hit: selectors.SearchHit) -> str | None:

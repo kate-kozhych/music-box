@@ -198,6 +198,11 @@ def test_the_documented_secondary_indexes_exist() -> None:
     assert index_names("artist")["artist_name_idx"] == ["name"]
     assert index_names("album")["album_first_release_date_idx"] == ["first_release_date"]
     assert index_names("album_genre")["album_genre_genre_album_idx"] == ["genre_id", "album_id"]
+    assert index_names("album_rating_stats")["album_stats_popular_idx"] == [
+        "rating_count",
+        "rating_sum",
+        "album_id",
+    ]
     assert ["artist_id"] in index_names("album_artist").values()
     assert index_names("album_artist")["PRIMARY"] == ["album_id", "position"]
     assert index_names("album_genre")["PRIMARY"] == ["album_id", "genre_id"]

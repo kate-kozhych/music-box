@@ -461,6 +461,83 @@
         ],
         "type": "object"
       },
+      "DiscoverAlbum": {
+        "properties": {
+          "artist_credit": {
+            "type": "string"
+          },
+          "average": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "cover_url": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mbid": {
+            "type": "string"
+          },
+          "rating_count": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "year": {
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "artist_credit",
+          "average",
+          "cover_url",
+          "id",
+          "mbid",
+          "rating_count",
+          "title",
+          "type",
+          "year"
+        ],
+        "type": "object"
+      },
+      "DiscoverAlbumPage": {
+        "properties": {
+          "attribution": {
+            "$ref": "#/components/schemas/Attribution"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DiscoverAlbum"
+            },
+            "type": "array"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "attribution",
+          "items",
+          "page",
+          "size",
+          "total"
+        ],
+        "type": "object"
+      },
       "ExternalStatusEnum": {
         "description": "* `ok` - ok\n* `cached` - cached\n* `unavailable` - unavailable\n* `offline` - offline",
         "enum": [
@@ -1435,6 +1512,61 @@
         "summary": "Edit my diary entry (never changes my album rating)",
         "tags": [
           "diary"
+        ]
+      }
+    },
+    "/api/v1/discover/albums": {
+      "get": {
+        "operationId": "discover_albums_list",
+        "parameters": [
+          {
+            "description": "1-based, default 1",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "1-50, default 20",
+            "in": "query",
+            "name": "size",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "enum": [
+                "popular"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoverAlbumPage"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Popular albums (most rated first; unrated albums by newest release)",
+        "tags": [
+          "catalog"
         ]
       }
     },
