@@ -51,6 +51,7 @@ DATABASES = {
         "CONN_HEALTH_CHECKS": True,
         "OPTIONS": {
             "charset": "utf8mb4",
+            "binary_prefix": True,
             "init_command": "SET sql_mode='STRICT_TRANS_TABLES', time_zone='+00:00'",
             "isolation_level": "read committed",
         },
