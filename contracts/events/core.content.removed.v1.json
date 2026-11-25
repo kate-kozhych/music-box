@@ -1,0 +1,34 @@
+{
+  "properties": {
+    "reason": {
+      "enum": [
+        "deleted",
+        "hidden"
+      ],
+      "title": "Reason",
+      "type": "string"
+    },
+    "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+    },
+    "target_type": {
+      "enum": [
+        "post",
+        "review",
+        "comment",
+        "diary_entry"
+      ],
+      "title": "Target Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "target_type",
+    "target_id",
+    "reason"
+  ],
+  "title": "ContentRemovedV1",
+  "type": "object"
+}

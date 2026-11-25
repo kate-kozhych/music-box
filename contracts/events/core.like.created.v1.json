@@ -1,0 +1,77 @@
+{
+  "$defs": {
+    "CommentContext": {
+      "properties": {
+        "parent_id": {
+          "format": "uuid",
+          "title": "Parent Id",
+          "type": "string"
+        },
+        "parent_type": {
+          "enum": [
+            "post",
+            "review"
+          ],
+          "title": "Parent Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "parent_type",
+        "parent_id"
+      ],
+      "title": "CommentContext",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "context": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CommentContext"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "excerpt": {
+      "title": "Excerpt",
+      "type": "string"
+    },
+    "liker_id": {
+      "format": "uuid",
+      "title": "Liker Id",
+      "type": "string"
+    },
+    "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+    },
+    "target_owner_id": {
+      "format": "uuid",
+      "title": "Target Owner Id",
+      "type": "string"
+    },
+    "target_type": {
+      "enum": [
+        "post",
+        "review",
+        "comment"
+      ],
+      "title": "Target Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "liker_id",
+    "target_type",
+    "target_id",
+    "target_owner_id",
+    "excerpt"
+  ],
+  "title": "LikeCreatedV1",
+  "type": "object"
+}

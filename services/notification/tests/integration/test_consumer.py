@@ -8,7 +8,11 @@ import pytest
 from pymongo.errors import DuplicateKeyError
 
 from musicbox_common.events import (
+    COMMENT_CREATED,
+    CONTENT_REMOVED,
+    CONTENT_RESTORED,
     FOLLOW_CREATED,
+    LIKE_CREATED,
     PAYLOADS,
     USER_DELETED,
     USER_PROFILE_UPDATED,
@@ -447,4 +451,10 @@ async def test_a_block_that_overtakes_the_registration_is_kept(db: Database) -> 
 
 def test_every_handled_event_has_a_contract() -> None:
     handled = {**IDENTITY_HANDLERS, **CORE_HANDLERS}
-    assert set(handled) == set(PAYLOADS)
+    awaiting_notification_rules = {
+        LIKE_CREATED,
+        COMMENT_CREATED,
+        CONTENT_REMOVED,
+        CONTENT_RESTORED,
+    }
+    assert set(handled) == set(PAYLOADS) - awaiting_notification_rules

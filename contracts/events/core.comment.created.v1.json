@@ -1,0 +1,72 @@
+{
+  "properties": {
+    "author_id": {
+      "format": "uuid",
+      "title": "Author Id",
+      "type": "string"
+    },
+    "comment_id": {
+      "format": "uuid",
+      "title": "Comment Id",
+      "type": "string"
+    },
+    "excerpt": {
+      "title": "Excerpt",
+      "type": "string"
+    },
+    "parent_comment_author_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Comment Author Id"
+    },
+    "parent_comment_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Comment Id"
+    },
+    "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+    },
+    "target_owner_id": {
+      "format": "uuid",
+      "title": "Target Owner Id",
+      "type": "string"
+    },
+    "target_type": {
+      "enum": [
+        "post",
+        "review"
+      ],
+      "title": "Target Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "comment_id",
+    "author_id",
+    "target_type",
+    "target_id",
+    "target_owner_id",
+    "excerpt"
+  ],
+  "title": "CommentCreatedV1",
+  "type": "object"
+}
