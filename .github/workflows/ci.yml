@@ -220,6 +220,8 @@ jobs:
         run: |
           python3 tools/check_coverage.py services/core/coverage.json \
             --critical apps/platform --critical-advisory
+          python3 tools/check_coverage.py services/core/coverage.json \
+            --critical apps/feed
 
   test-notification:
     name: Tests — Notification (MongoDB, RabbitMQ, Redis)

@@ -677,6 +677,105 @@
         ],
         "type": "object"
       },
+      "FeedItem": {
+        "properties": {
+          "actor": {
+            "$ref": "#/components/schemas/UserSummary"
+          },
+          "album": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AlbumSummary"
+              }
+            ],
+            "nullable": true
+          },
+          "comment_count": {
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "like_count": {
+            "type": "integer"
+          },
+          "liked_by_me": {
+            "type": "boolean"
+          },
+          "object": {
+            "$ref": "#/components/schemas/FeedObject"
+          },
+          "rating": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "verb": {
+            "description": "POST, REVIEW, RATING or DIARY",
+            "type": "string"
+          }
+        },
+        "required": [
+          "actor",
+          "album",
+          "comment_count",
+          "created_at",
+          "id",
+          "like_count",
+          "liked_by_me",
+          "object",
+          "rating",
+          "verb"
+        ],
+        "type": "object"
+      },
+      "FeedObject": {
+        "properties": {
+          "edited": {
+            "type": "boolean"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "description": "post, review, rating or diary_entry",
+            "type": "string"
+          }
+        },
+        "required": [
+          "edited",
+          "excerpt",
+          "id",
+          "type"
+        ],
+        "type": "object"
+      },
+      "FeedPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FeedItem"
+            },
+            "type": "array"
+          },
+          "next_cursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "type": "object"
+      },
       "FollowEntry": {
         "properties": {
           "followed_at": {
@@ -2159,6 +2258,107 @@
         "summary": "Popular albums (most rated first; unrated albums by newest release)",
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/api/v1/feed": {
+      "get": {
+        "operationId": "feed_home",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-50, default 20",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedPage"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Activity of the users I follow and my own, newest first",
+        "tags": [
+          "feed"
+        ]
+      }
+    },
+    "/api/v1/feed/explore": {
+      "get": {
+        "operationId": "feed_explore",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-50, default 20",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "enum": [
+                "diary",
+                "post",
+                "rating",
+                "review"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedPage"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Recent public activity of everyone, newest first",
+        "tags": [
+          "feed"
         ]
       }
     },

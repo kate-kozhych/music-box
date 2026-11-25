@@ -12,7 +12,7 @@ from musicbox_core.apps.catalog.models import Album
 from musicbox_core.apps.catalog.selectors import get_album
 from musicbox_core.apps.platform.content import ContentType, announce_deletion
 from musicbox_core.apps.platform.domain_events import dispatch
-from musicbox_core.apps.posts.events import PostCreated
+from musicbox_core.apps.posts.events import PostAlbumChanged, PostCreated
 from musicbox_core.apps.posts.models import Post
 from musicbox_core.apps.posts.policies import ensure_author, ensure_editable
 from musicbox_core.apps.posts.selectors import get_post
@@ -39,6 +39,8 @@ def edit_post(principal: Principal, post_id: str, fields: dict[str, Any]) -> Pos
     if fields:
         post.edited_at = timezone.now()
         post.save(update_fields=["body", "album", "edited_at"])
+    if "album_id" in fields:
+        dispatch(PostAlbumChanged(post.id, post.album_id))
     return get_post(post_id, principal)
 
 
