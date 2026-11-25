@@ -16,23 +16,31 @@ from pydantic import ValidationError
 from pymongo.errors import DuplicateKeyError
 
 from musicbox_common.events import (
+    COMMENT_CREATED,
+    CONTENT_REMOVED,
+    CONTENT_RESTORED,
     DEAD_LETTER_EXCHANGE,
     DELIVERY_LIMIT,
     EXCHANGE,
     FOLLOW_CREATED,
+    LIKE_CREATED,
     USER_DELETED,
     USER_PROFILE_UPDATED,
     USER_REGISTERED,
     USER_STATUS_CHANGED,
+    CommentCreatedV1,
+    ContentRemovedV1,
+    ContentRestoredV1,
     Envelope,
     FollowCreatedV1,
+    LikeCreatedV1,
     UserDeletedV1,
     UserProfileUpdatedV1,
     UserRegisteredV1,
     UserStatusChangedV1,
 )
 from musicbox_common.logging import request_id_var
-from notifier import notifications, snapshots
+from notifier import content, notifications, snapshots
 from notifier.db import PROCESSED_EVENTS, Database
 
 log = logging.getLogger(__name__)
@@ -71,7 +79,10 @@ async def _status_changed(db: Database, envelope: Envelope) -> None:
 
 
 async def _deleted(db: Database, envelope: Envelope) -> None:
-    await snapshots.apply_deleted(db, UserDeletedV1.model_validate(envelope.payload))
+    payload = UserDeletedV1.model_validate(envelope.payload)
+    await snapshots.apply_deleted(db, payload)
+    removed = await notifications.delete_for_user(db, payload.user_id)
+    log.info("Notifications of a deleted user removed", extra={"count": removed})
 
 
 async def _follow_created(db: Database, envelope: Envelope) -> None:
@@ -84,6 +95,33 @@ async def _follow_created(db: Database, envelope: Envelope) -> None:
     )
 
 
+async def _like_created(db: Database, envelope: Envelope) -> None:
+    payload = LikeCreatedV1.model_validate(envelope.payload)
+    await snapshots.ensure_placeholder(db, payload.liker_id)
+    await notifications.create_like(db, payload, envelope.event_id)
+
+
+async def _comment_created(db: Database, envelope: Envelope) -> None:
+    payload = CommentCreatedV1.model_validate(envelope.payload)
+    await snapshots.ensure_placeholder(db, payload.author_id)
+    await notifications.create_comment(db, payload, envelope.event_id)
+
+
+async def _content_removed(db: Database, envelope: Envelope) -> None:
+    payload = ContentRemovedV1.model_validate(envelope.payload)
+    ref = content.reference(payload.target_type, payload.target_id)
+    if payload.reason == "deleted":
+        await content.apply_deleted(db, ref)
+    else:
+        await content.apply_visibility(db, ref, "hidden", envelope.occurred_at)
+
+
+async def _content_restored(db: Database, envelope: Envelope) -> None:
+    payload = ContentRestoredV1.model_validate(envelope.payload)
+    ref = content.reference(payload.target_type, payload.target_id)
+    await content.apply_visibility(db, ref, "visible", envelope.occurred_at)
+
+
 IDENTITY_HANDLERS: dict[str, Handler] = {
     USER_REGISTERED: _registered,
     USER_PROFILE_UPDATED: _profile_updated,
@@ -91,7 +129,13 @@ IDENTITY_HANDLERS: dict[str, Handler] = {
     USER_DELETED: _deleted,
 }
 
-CORE_HANDLERS: dict[str, Handler] = {FOLLOW_CREATED: _follow_created}
+CORE_HANDLERS: dict[str, Handler] = {
+    FOLLOW_CREATED: _follow_created,
+    LIKE_CREATED: _like_created,
+    COMMENT_CREATED: _comment_created,
+    CONTENT_REMOVED: _content_removed,
+    CONTENT_RESTORED: _content_restored,
+}
 
 ROUTES: tuple[tuple[QueueSpec, Mapping[str, Handler]], ...] = (
     (IDENTITY_QUEUE, IDENTITY_HANDLERS),

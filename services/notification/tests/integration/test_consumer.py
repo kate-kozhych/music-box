@@ -8,11 +8,7 @@ import pytest
 from pymongo.errors import DuplicateKeyError
 
 from musicbox_common.events import (
-    COMMENT_CREATED,
-    CONTENT_REMOVED,
-    CONTENT_RESTORED,
     FOLLOW_CREATED,
-    LIKE_CREATED,
     PAYLOADS,
     USER_DELETED,
     USER_PROFILE_UPDATED,
@@ -356,7 +352,7 @@ async def test_deleted_user_is_tombstoned(db: Database) -> None:
 
 
 async def test_unknown_event_types_are_acknowledged(db: Database) -> None:
-    assert await process_event(db, event("core.like.created.v1", {}), CORE_HANDLERS) is True
+    assert await process_event(db, event("core.follow.removed.v9", {}), CORE_HANDLERS) is True
 
 
 async def test_dedupe_key_is_unique_in_the_database(db: Database) -> None:
@@ -451,10 +447,27 @@ async def test_a_block_that_overtakes_the_registration_is_kept(db: Database) -> 
 
 def test_every_handled_event_has_a_contract() -> None:
     handled = {**IDENTITY_HANDLERS, **CORE_HANDLERS}
-    awaiting_notification_rules = {
-        LIKE_CREATED,
-        COMMENT_CREATED,
-        CONTENT_REMOVED,
-        CONTENT_RESTORED,
-    }
-    assert set(handled) == set(PAYLOADS) - awaiting_notification_rules
+    assert set(handled) == set(PAYLOADS)
+
+
+async def test_a_registration_racing_with_a_placeholder_is_not_lost(
+    db: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    alice = uuid.uuid4()
+    collection = type(db[USER_SNAPSHOTS])
+    original = collection.update_one
+    raced = False
+
+    async def losing(self: Any, *args: Any, **kwargs: Any) -> Any:
+        nonlocal raced
+        if self.name == USER_SNAPSHOTS and not raced:
+            raced = True
+            await snapshots.ensure_placeholder(db, alice)
+            raise DuplicateKeyError("lost the race")
+        return await original(self, *args, **kwargs)
+
+    monkeypatch.setattr(collection, "update_one", losing)
+    await process_event(db, registered_event(alice), IDENTITY_HANDLERS)
+
+    actor = snapshots.as_actor(str(alice), (await snapshots.get_many(db, [alice]))[str(alice)])
+    assert (actor["username"], actor["display_name"]) == ("alice", "Alice")

@@ -16,7 +16,14 @@ from pymongo import AsyncMongoClient
 from musicbox_common.auth import AsyncAuthStateReader, StaticKeyProvider, TokenVerifier
 from notifier.app import create_app
 from notifier.auth import Authenticator
-from notifier.db import NOTIFICATIONS, PROCESSED_EVENTS, USER_SNAPSHOTS, Database, ensure_indexes
+from notifier.db import (
+    CONTENT_STATES,
+    NOTIFICATIONS,
+    PROCESSED_EVENTS,
+    USER_SNAPSHOTS,
+    Database,
+    ensure_indexes,
+)
 from notifier.settings import Settings
 
 ISSUER = "musicbox-identity"
@@ -51,7 +58,7 @@ async def mongo(settings: Settings) -> AsyncIterator[AsyncMongoClient[Any]]:
 @pytest.fixture
 async def db(mongo: AsyncMongoClient[Any], settings: Settings) -> Database:
     database: Database = mongo[settings.mongo_db]
-    for collection in (NOTIFICATIONS, USER_SNAPSHOTS, PROCESSED_EVENTS):
+    for collection in (NOTIFICATIONS, USER_SNAPSHOTS, PROCESSED_EVENTS, CONTENT_STATES):
         await database[collection].drop()
     await ensure_indexes(database, processed_event_ttl_days=settings.processed_event_ttl_days)
     return database

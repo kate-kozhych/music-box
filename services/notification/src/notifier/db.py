@@ -8,6 +8,7 @@ from pymongo.asynchronous.database import AsyncDatabase
 NOTIFICATIONS = "notifications"
 USER_SNAPSHOTS = "user_snapshots"
 PROCESSED_EVENTS = "processed_events"
+CONTENT_STATES = "content_states"
 
 Database = AsyncDatabase[dict[str, Any]]
 
@@ -27,10 +28,16 @@ async def ensure_indexes(db: Database, *, processed_event_ttl_days: int = 30) ->
     await notifications.create_index(
         [("target.type", ASCENDING), ("target.id", ASCENDING)], name="target_idx"
     )
+    await notifications.create_index([("refs", ASCENDING)], name="refs_idx")
     await notifications.create_index([("actor_id", ASCENDING)], name="actor_idx")
 
     await db[PROCESSED_EVENTS].create_index(
         [("processed_at", ASCENDING)],
         name="processed_at_ttl",
+        expireAfterSeconds=processed_event_ttl_days * 24 * 3600,
+    )
+    await db[CONTENT_STATES].create_index(
+        [("settled_at", ASCENDING)],
+        name="settled_at_ttl",
         expireAfterSeconds=processed_event_ttl_days * 24 * 3600,
     )

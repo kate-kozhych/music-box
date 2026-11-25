@@ -18,27 +18,25 @@ from notifier.db import USER_SNAPSHOTS, Database
 log = logging.getLogger(__name__)
 
 STATUS_ACTIVE = "active"
+STATUS_BLOCKED = "blocked"
 STATUS_DELETED = "deleted"
 
 
 async def _upsert_if_newer(
     db: Database, user_id: uuid.UUID, version: int, fields: dict[str, Any]
 ) -> bool:
+    older = {
+        "_id": str(user_id),
+        "profile_version": {"$lt": version},
+        "status": {"$ne": STATUS_DELETED},
+    }
+    change = {"$set": {**fields, "profile_version": version}}
     try:
         result = await db[USER_SNAPSHOTS].update_one(
-            {
-                "_id": str(user_id),
-                "profile_version": {"$lt": version},
-                "status": {"$ne": STATUS_DELETED},
-            },
-            {
-                "$set": {**fields, "profile_version": version},
-                "$setOnInsert": {"status": STATUS_ACTIVE},
-            },
-            upsert=True,
+            older, {**change, "$setOnInsert": {"status": STATUS_ACTIVE}}, upsert=True
         )
     except DuplicateKeyError:
-        return False
+        result = await db[USER_SNAPSHOTS].update_one(older, change)
     return bool(result.modified_count or result.upserted_id)
 
 
@@ -117,6 +115,13 @@ async def ensure_placeholder(db: Database, user_id: uuid.UUID) -> None:
         )
     except DuplicateKeyError:
         return
+
+
+async def any_deleted(db: Database, user_ids: Iterable[str]) -> bool:
+    found = await db[USER_SNAPSHOTS].find_one(
+        {"_id": {"$in": list(user_ids)}, "status": STATUS_DELETED}, {"_id": 1}
+    )
+    return found is not None
 
 
 async def get_many(
