@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import contextlib
+import contextvars
+import json
 import logging
 import math
 import random
+import socket
+import threading
 import time
 from collections.abc import Sequence
+from concurrent.futures import Future
 from typing import Any, Final
 
 import httpx
@@ -45,6 +51,9 @@ HTTP_NOT_FOUND: Final = 404
 HTTP_BAD_REQUEST: Final = 400
 HTTP_SERVER_ERROR: Final = 500
 DEFAULT_RETRY_AFTER: Final = 30
+CONNECTED_EVENTS: Final = frozenset(
+    {"connection.connect_tcp.complete", "connection.start_tls.complete"}
+)
 
 
 def build_user_agent(version: str, contact: str) -> str:
@@ -54,6 +63,33 @@ def build_user_agent(version: str, contact: str) -> str:
             "CORE_MB_USER_AGENT_CONTACT is required when CORE_CATALOG_MODE=live (NFR-061)."
         )
     return f"Musicbox/{version} ( {contact} )"
+
+
+class UpstreamCall:
+    def __init__(self, deadline: float) -> None:
+        self.deadline = deadline
+        self._lock = threading.Lock()
+        self._stream: Any = None
+        self._aborted = False
+
+    def trace(self, event: str, info: dict[str, Any]) -> None:
+        if event not in CONNECTED_EVENTS:
+            return
+        with self._lock:
+            self._stream = info["return_value"]
+            if self._aborted:
+                self._shut_down()
+
+    def abort(self) -> None:
+        with self._lock:
+            self._aborted = True
+            self._shut_down()
+
+    def _shut_down(self) -> None:
+        if self._stream is None:
+            return
+        with contextlib.suppress(OSError):
+            self._stream.get_extra_info("socket").shutdown(socket.SHUT_RDWR)
 
 
 class MusicBrainzProvider:
@@ -68,12 +104,14 @@ class MusicBrainzProvider:
         client: httpx.Client | None = None,
         base_url: str = BASE_URL,
         acquire_timeout: float = DEFAULT_ACQUIRE_TIMEOUT,
+        total_budget: float = TOTAL_BUDGET,
         sleep: Any = None,
         monotonic: Any = None,
     ) -> None:
         self._limiter: RateLimiter = limiter or NullRateLimiter()
         self._breaker: CircuitBreaker | NullCircuitBreaker = breaker or NullCircuitBreaker()
         self._acquire_timeout = acquire_timeout
+        self._total_budget = total_budget
         self._sleep = sleep or time.sleep
         self._monotonic = monotonic or time.monotonic
         self._owns_client = client is None
@@ -82,6 +120,7 @@ class MusicBrainzProvider:
             timeout=httpx.Timeout(READ_TIMEOUT, connect=CONNECT_TIMEOUT),
             headers={"User-Agent": user_agent, "Accept": "application/json"},
             follow_redirects=False,
+            limits=httpx.Limits(max_keepalive_connections=0),
         )
 
     def close(self) -> None:
@@ -145,18 +184,41 @@ class MusicBrainzProvider:
         return [h for h in hits if isinstance(h, dict)] if isinstance(hits, list) else []
 
     def _get(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
+        call = UpstreamCall(self._monotonic() + self._total_budget)
+        future: Future[dict[str, Any]] = Future()
+        threading.Thread(
+            target=contextvars.copy_context().run,
+            args=(self._complete, future, call, path, params),
+            name="musicbrainz-call",
+            daemon=True,
+        ).start()
         try:
-            return self._request(path, params)
+            return future.result(timeout=self._total_budget)
+        except TimeoutError as exc:
+            call.abort()
+            raise MetadataUnavailableError("MusicBrainz did not answer in time.") from exc
         except redis.RedisError as exc:
             raise MetadataUnavailableError("The MusicBrainz limiter is unavailable.") from exc
 
-    def _request(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
+    def _complete(
+        self,
+        future: Future[dict[str, Any]],
+        call: UpstreamCall,
+        path: str,
+        params: dict[str, Any],
+    ) -> None:
+        try:
+            future.set_result(self._request(call, path, params))
+        except BaseException as exc:
+            future.set_exception(exc)
+
+    def _request(self, call: UpstreamCall, path: str, params: dict[str, Any]) -> dict[str, Any]:
         if self._breaker.is_open():
             raise MetadataUnavailableError(
                 "The MusicBrainz circuit breaker is open.",
                 retry_after=self._breaker.open_seconds,
             )
-        deadline = self._monotonic() + TOTAL_BUDGET
+        deadline = call.deadline
         last_detail = "MusicBrainz did not answer in time."
         retry_after: float | None = None
 
@@ -170,16 +232,14 @@ class MusicBrainzProvider:
             if started >= deadline:
                 break
             try:
-                response = self._client.get(
-                    path, params=params, timeout=_request_timeout(deadline - started)
-                )
+                response, body = self._fetch(call, path, params, deadline - started)
             except httpx.HTTPError as exc:
                 last_detail = f"MusicBrainz request failed: {exc.__class__.__name__}"
                 self._log_call(path, None, started, attempt)
                 self._breaker.record_failure()
             else:
                 self._log_call(path, response.status_code, started, attempt)
-                outcome = self._classify(response)
+                outcome = self._classify(response, body)
                 if outcome is not None:
                     return outcome
                 last_detail = f"MusicBrainz returned {response.status_code}."
@@ -196,7 +256,24 @@ class MusicBrainzProvider:
             last_detail, retry_after=math.ceil(retry_after or DEFAULT_RETRY_AFTER)
         )
 
-    def _classify(self, response: httpx.Response) -> dict[str, Any] | None:
+    def _fetch(
+        self, call: UpstreamCall, path: str, params: dict[str, Any], remaining: float
+    ) -> tuple[httpx.Response, bytes]:
+        body = bytearray()
+        with self._client.stream(
+            "GET",
+            path,
+            params=params,
+            timeout=_request_timeout(remaining),
+            extensions={"trace": call.trace},
+        ) as response:
+            for chunk in response.iter_bytes():
+                body += chunk
+                if self._monotonic() >= call.deadline:
+                    raise httpx.ReadTimeout("The response outlived the request budget.")
+        return response, bytes(body)
+
+    def _classify(self, response: httpx.Response, content: bytes) -> dict[str, Any] | None:
         status = response.status_code
         if status == HTTP_NOT_FOUND:
             self._breaker.record_success()
@@ -212,7 +289,7 @@ class MusicBrainzProvider:
             else:
                 self._breaker.record_success()
             raise MetadataUnavailableError(f"MusicBrainz returned {status}.")
-        body = _json_object(response)
+        body = _json_object(content)
         if body is None:
             self._breaker.record_failure()
             raise MetadataUnavailableError("MusicBrainz returned an unreadable body.")
@@ -248,9 +325,9 @@ def _request_timeout(remaining: float) -> httpx.Timeout:
     return httpx.Timeout(min(READ_TIMEOUT, remaining - connect), connect=connect)
 
 
-def _json_object(response: httpx.Response) -> dict[str, Any] | None:
+def _json_object(content: bytes) -> dict[str, Any] | None:
     try:
-        body = response.json()
+        body = json.loads(content)
     except ValueError:
         return None
     return body if isinstance(body, dict) else None

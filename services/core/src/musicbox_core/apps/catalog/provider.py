@@ -4,6 +4,8 @@ import functools
 
 import redis
 from django.conf import settings
+from redis.backoff import NoBackoff
+from redis.retry import Retry
 
 from musicbox_core.apps.catalog.cache import SearchCache
 from musicbox_core.apps.catalog.fixtures import FixtureProvider
@@ -19,7 +21,10 @@ OFFLINE = "offline"
 @functools.cache
 def cache_redis() -> redis.Redis:
     return redis.Redis.from_url(
-        settings.MUSICBOX_REDIS_CACHE_URL, socket_timeout=2, socket_connect_timeout=2
+        settings.MUSICBOX_REDIS_CACHE_URL,
+        socket_timeout=1,
+        socket_connect_timeout=1,
+        retry=Retry(NoBackoff(), 0),
     )
 
 

@@ -45,10 +45,11 @@ class RedisRateLimiter:
         while True:
             if self._client.set(self._key, b"1", nx=True, px=self._slot_ms):
                 return True
-            if self._now() >= deadline:
+            remaining = deadline - self._now()
+            if remaining <= 0:
                 log.info("MusicBrainz rate-limit slot not available", extra={"timeout": timeout_s})
                 return False
-            self._sleep(POLL_INTERVAL)
+            self._sleep(min(POLL_INTERVAL, remaining))
 
 
 class NullRateLimiter:
