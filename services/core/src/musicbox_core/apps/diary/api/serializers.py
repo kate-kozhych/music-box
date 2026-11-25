@@ -35,6 +35,7 @@ class DiaryEntrySerializer(serializers.Serializer):  # type: ignore[type-arg]
     relisten = serializers.BooleanField()
     visibility = serializers.ChoiceField(choices=Visibility.choices)
     hidden = serializers.BooleanField()
+    hidden_reason = serializers.CharField(allow_null=True)
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
 

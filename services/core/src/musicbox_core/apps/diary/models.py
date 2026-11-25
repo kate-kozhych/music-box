@@ -13,6 +13,7 @@ from musicbox_core.apps.ratings.values import MAX_STORED, MIN_STORED
 from musicbox_core.apps.users.models import UserProfile
 
 NOTE_MAX = 1000
+HIDDEN_REASON_MAX = 500
 FIRST_DAY = dt.date(1900, 1, 1)
 
 
@@ -32,6 +33,7 @@ class DiaryEntry(models.Model):
         max_length=10, choices=Visibility.choices, default=Visibility.PUBLIC
     )
     hidden_at = models.DateTimeField(null=True, blank=True)
+    hidden_reason = models.CharField(max_length=HIDDEN_REASON_MAX, null=True, blank=True)
     created_at = models.DateTimeField()
     updated_at = models.DateTimeField()
 
