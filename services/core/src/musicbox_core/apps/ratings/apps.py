@@ -10,7 +10,10 @@ class RatingsConfig(AppConfig):
         from musicbox_core.apps.catalog import album_page
         from musicbox_core.apps.platform.domain_events import subscribe
         from musicbox_core.apps.ratings import selectors, services
+        from musicbox_core.apps.ratings.erasure import erase_ratings
+        from musicbox_core.apps.users.erasure import add_erase_step
         from musicbox_core.apps.users.events import UserVisibilityChanged
 
         album_page.add_viewer_part(selectors.viewer_rating)
         subscribe(UserVisibilityChanged, services.rebuild_stats_rated_by)
+        add_erase_step(erase_ratings)

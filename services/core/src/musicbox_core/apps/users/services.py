@@ -15,8 +15,9 @@ from musicbox_common.events import (
     UserStatusChangedV1,
 )
 from musicbox_core.apps.platform.domain_events import dispatch
+from musicbox_core.apps.users.erasure import is_deleted, schedule_erasure
 from musicbox_core.apps.users.events import UserVisibilityChanged
-from musicbox_core.apps.users.models import UserProfile, UserStatus
+from musicbox_core.apps.users.models import DeletedUser, UserProfile, UserStatus
 
 
 def ensure_profile(principal: Principal) -> UserProfile:
@@ -33,8 +34,8 @@ def ensure_profile(principal: Principal) -> UserProfile:
 
 def lock_active_profile(principal: Principal) -> UserProfile:
     ensure_profile(principal)
-    profile = UserProfile.objects.select_for_update().get(user_id=principal.user_id)
-    if not profile.is_active:
+    profile = UserProfile.objects.select_for_update().filter(user_id=principal.user_id).first()
+    if profile is None or not profile.is_active:
         raise unauthorized(ErrorCode.TOKEN_INVALID, "The account is not active.")
     return profile
 
@@ -42,13 +43,16 @@ def lock_active_profile(principal: Principal) -> UserProfile:
 def _create_from_claims(principal: Principal) -> UserProfile:
     try:
         with transaction.atomic():
-            return UserProfile.objects.create(
+            profile = UserProfile.objects.create(
                 user_id=principal.user_id,
                 username=principal.username,
                 display_name=principal.username,
                 profile_version=0,
                 joined_at=timezone.now(),
             )
+            if is_deleted(principal.user_id):
+                raise unauthorized(ErrorCode.TOKEN_INVALID, "The account is not active.")
+            return profile
     except IntegrityError:
         return UserProfile.objects.get(user_id=principal.user_id)
 
@@ -73,9 +77,9 @@ def _locked_profile(user_id: uuid.UUID) -> UserProfile:
 
 
 def apply_registered(event: UserRegisteredV1, occurred_at: datetime) -> None:
-    profile = _locked_profile(event.user_id)
-    if profile.status == UserStatus.DELETED:
+    if is_deleted(event.user_id):
         return
+    profile = _locked_profile(event.user_id)
     newer = event.profile_version > profile.profile_version
     if not newer and not _awaits_registration(profile):
         return
@@ -89,8 +93,10 @@ def apply_registered(event: UserRegisteredV1, occurred_at: datetime) -> None:
 
 
 def apply_profile_updated(event: UserProfileUpdatedV1) -> None:
+    if is_deleted(event.user_id):
+        return
     profile = _locked_profile(event.user_id)
-    if profile.status == UserStatus.DELETED or event.profile_version <= profile.profile_version:
+    if event.profile_version <= profile.profile_version:
         return
     profile.display_name = event.display_name
     profile.bio = event.bio
@@ -100,9 +106,9 @@ def apply_profile_updated(event: UserProfileUpdatedV1) -> None:
 
 
 def apply_status_changed(event: UserStatusChangedV1) -> None:
-    profile = _locked_profile(event.user_id)
-    if profile.status == UserStatus.DELETED:
+    if is_deleted(event.user_id):
         return
+    profile = _locked_profile(event.user_id)
     if profile.status_changed_at is not None and event.changed_at <= profile.status_changed_at:
         return
     changed = profile.status != event.status
@@ -118,6 +124,9 @@ def tombstone_username(user_id: uuid.UUID) -> str:
 
 
 def apply_deleted(event: UserDeletedV1) -> None:
+    if is_deleted(event.user_id):
+        return
+    DeletedUser.objects.create(user_id=event.user_id, deleted_at=event.deleted_at)
     profile = _locked_profile(event.user_id)
     profile.status = UserStatus.DELETED
     profile.status_changed_at = event.deleted_at
@@ -127,3 +136,4 @@ def apply_deleted(event: UserDeletedV1) -> None:
     profile.avatar_url = None
     profile.save()
     dispatch(UserVisibilityChanged(event.user_id))
+    transaction.on_commit(lambda: schedule_erasure(event.user_id))

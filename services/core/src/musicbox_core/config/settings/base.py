@@ -99,6 +99,8 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
 }
 
+ERASURE_SWEEP_SECONDS = 15.0
+
 CELERY_BROKER_URL = ENV.celery_broker_url
 CELERY_TASK_DEFAULT_QUEUE = "core"
 CELERY_TASK_IGNORE_RESULT = True
@@ -111,7 +113,12 @@ CELERY_BEAT_SCHEDULE = {
         "task": "platform.publish_outbox",
         "schedule": ENV.outbox_sweep_seconds,
         "options": {"expires": ENV.outbox_sweep_seconds},
-    }
+    },
+    "sweep-erasures": {
+        "task": "users.sweep_erasures",
+        "schedule": ERASURE_SWEEP_SECONDS,
+        "options": {"expires": ERASURE_SWEEP_SECONDS},
+    },
 }
 
 MUSICBOX_JWKS_URL = ENV.jwks_url
