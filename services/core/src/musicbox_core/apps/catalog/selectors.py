@@ -2,16 +2,19 @@ from __future__ import annotations
 
 import datetime as dt
 import re
+import uuid
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from django.db.models import F, QuerySet
 from django.db.models.expressions import RawSQL
 
-from musicbox_common.auth import Principal
+from musicbox_common.errors import AppError, ErrorCode, not_found
 from musicbox_core.apps.catalog.models import Album, AlbumRatingStats
 from musicbox_core.apps.catalog.ports import ReleaseGroupSummary
+from musicbox_core.apps.catalog.provider import is_live
 from musicbox_core.apps.catalog.search_text import normalise
 
 MIN_QUERY = 2
@@ -106,19 +109,46 @@ def album_detail_queryset() -> QuerySet[Album]:
     )
 
 
+def get_album(album_id: str) -> Album:
+    try:
+        parsed = uuid.UUID(album_id)
+    except ValueError as exc:
+        raise not_found("No such album.") from exc
+    album = Album.objects.filter(id=parsed).first()
+    if album is None:
+        raise AppError(404, ErrorCode.UNKNOWN_ALBUM, "No such album.")
+    return album
+
+
+def album_summary(album: Album) -> dict[str, Any]:
+    return {
+        "id": str(album.id),
+        "mbid": album.mbid,
+        "title": album.title,
+        "artist_credit": album.artist_credit,
+        "year": album.first_release_date.year if album.first_release_date else None,
+        "type": str(album.primary_type),
+        "cover_url": album.cover_url_250 if is_live() else None,
+    }
+
+
 def rating_stats(album: Album) -> dict[str, Any]:
-    stats: AlbumRatingStats | None = getattr(album, "rating_stats", None)
+    return rating_stats_payload(getattr(album, "rating_stats", None))
+
+
+def rating_stats_payload(stats: AlbumRatingStats | None) -> dict[str, Any]:
     if stats is None or stats.rating_count == 0:
         return {"average": None, "count": 0, "distribution": [0] * 10}
     return {
-        "average": round(stats.rating_sum / stats.rating_count / RATING_SCALE, 1),
+        "average": average(stats),
         "count": stats.rating_count,
         "distribution": stats.distribution,
     }
 
 
-def viewer_state(album: Album, viewer: Principal | None) -> dict[str, Any]:
-    return {"rating": None, "review_id": None, "diary_count": 0}
+def average(stats: AlbumRatingStats) -> float:
+    exact = Decimal(stats.rating_sum) / (stats.rating_count * RATING_SCALE)
+    return float(exact.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
 
 
 def release_date_payload(album: Album) -> tuple[str | None, str | None]:
@@ -139,11 +169,13 @@ __all__ = [
     "SearchHit",
     "SearchResult",
     "album_detail_queryset",
+    "album_summary",
     "boolean_query",
     "extra_hits",
+    "get_album",
     "local_hit",
     "local_search",
     "rating_stats",
+    "rating_stats_payload",
     "release_date_payload",
-    "viewer_state",
 ]

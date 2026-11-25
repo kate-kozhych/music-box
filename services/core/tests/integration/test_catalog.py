@@ -311,7 +311,7 @@ def test_fulltext_migration_reverses_without_removing_catalog_data() -> None:
     AlbumArtist.objects.create(album=created, position=0, artist=credited)
     AlbumGenre.objects.create(album=created, genre=tagged, votes=3)
     AlbumRatingStats.objects.create(album=created, rating_count=1, rating_sum=8, b08=1)
-    leaf = MigrationExecutor(connection).loader.graph.leaf_nodes("catalog")
+    leaf = MigrationExecutor(connection).loader.graph.leaf_nodes()
 
     try:
         MigrationExecutor(connection).migrate([("catalog", "0001_initial")])
@@ -331,7 +331,7 @@ def test_fulltext_migration_reverses_without_removing_catalog_data() -> None:
 @pytest.mark.django_db(transaction=True)
 def test_the_catalog_migrations_reverse_and_reapply_cleanly() -> None:
     executor = MigrationExecutor(connection)
-    leaf = executor.loader.graph.leaf_nodes("catalog")
+    leaf = executor.loader.graph.leaf_nodes()
 
     try:
         executor.migrate([("catalog", None)])

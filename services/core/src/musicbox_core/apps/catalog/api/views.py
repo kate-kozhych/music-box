@@ -17,7 +17,7 @@ from musicbox_common.errors import (
     not_found,
     validation_failed,
 )
-from musicbox_core.apps.catalog import attribution, search, selectors, services, tasks
+from musicbox_core.apps.catalog import album_page, attribution, search, selectors, services, tasks
 from musicbox_core.apps.catalog.api.serializers import (
     AlbumDetailSerializer,
     AlbumSearchPageSerializer,
@@ -164,8 +164,8 @@ def album_payload(album: Album, request: Request) -> dict[str, Any]:
         "cover_url": album.cover_url_250 if is_live() else None,
         "cover_url_500": album.cover_url_500 if is_live() else None,
         "stats": selectors.rating_stats(album),
-        "recent_reviews": [],
-        "viewer": selectors.viewer_state(album, principal_of(request)),
+        "recent_reviews": album_page.recent_reviews(album, principal_of(request)),
+        "viewer": album_page.viewer_state(album, principal_of(request)),
         "source": attribution.album_source(album.mbid),
         "attribution": attribution.notice(),
     }
