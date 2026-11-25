@@ -25,8 +25,11 @@ def main(argv: list[str]) -> int:
         return 2
 
     if use_docker:
+        redis = subprocess.call(["docker", "compose", "up", "-d", "--wait", "redis"], cwd=ROOT)
+        if redis != 0:
+            return redis
         cmd = [
-            "docker", "compose", "run", "--rm", "--no-deps",
+            "docker", "compose", "run", "--rm", "--no-deps", "--build",
             "-e", "CORE_CATALOG_MODE=live",
             "-v", f"{FIXTURES}:/app/services/core/fixtures/catalog",
             "--user", f"{os.getuid()}:{os.getgid()}",

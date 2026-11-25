@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import time
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +17,7 @@ from musicbox_core.apps.catalog.fixtures import (
     fixtures_dir,
 )
 from musicbox_core.apps.catalog.musicbrainz import MusicBrainzProvider
-from musicbox_core.apps.catalog.ports import MetadataError
+from musicbox_core.apps.catalog.ports import MetadataError, MetadataUnavailableError
 from musicbox_core.apps.catalog.provider import get_provider, is_live
 from musicbox_core.apps.catalog.search_text import normalise
 
@@ -25,6 +26,8 @@ TARGET_ALBUMS = 220
 TARGET_ARTISTS = 110
 STUDIO_ALBUMS_PER_ARTIST = 3
 OTHER_RELEASES_PER_ARTIST = 1
+CALL_ATTEMPTS = 3
+VARIOUS_ARTISTS = "89ad4ac3-39f7-470e-963a-56509c546377"
 
 ATTRIBUTION = {
     "source": "MusicBrainz",
@@ -106,12 +109,10 @@ class Command(BaseCommand):
             )
 
         if len(release_groups) < target_albums or len(seen_artists) < target_artists:
-            self.stderr.write(
-                self.style.WARNING(
-                    f"Only recorded {len(release_groups)} albums and {len(seen_artists)} artists "
-                    f"(wanted {target_albums} and {target_artists}). "
-                    "Add more seed queries."
-                )
+            raise CommandError(
+                f"Only found {len(release_groups)} albums and {len(seen_artists)} artists "
+                f"(wanted {target_albums} and {target_artists}). "
+                "Nothing was written; retry or add seed queries."
             )
 
         self._write(out_dir, release_groups, len(seen_artists))
@@ -120,16 +121,23 @@ class Command(BaseCommand):
         if not _is_supported(hit):
             return
         for ref in mapping.artist_refs(hit.get("artist-credit") or []):
+            if ref.mbid == VARIOUS_ARTISTS:
+                continue
             matches_seed = normalise(ref.name) == normalise(seed)
             candidates[ref.mbid] = candidates.get(ref.mbid, False) or matches_seed
 
     def _safe(self, call: Any, *args: Any, **kwargs: Any) -> list[dict[str, Any]]:
-        try:
-            result = call(*args, **kwargs)
-        except MetadataError as exc:
-            self.stderr.write(self.style.WARNING(f"  skipped: {exc}"))
-            return []
-        return list(result)
+        for attempt in range(CALL_ATTEMPTS):
+            try:
+                return list(call(*args, **kwargs))
+            except MetadataUnavailableError as exc:
+                self.stderr.write(self.style.WARNING(f"  unavailable: {exc}"))
+                if attempt < CALL_ATTEMPTS - 1:
+                    time.sleep(exc.retry_after)
+            except MetadataError as exc:
+                self.stderr.write(self.style.WARNING(f"  skipped: {exc}"))
+                break
+        return []
 
     def _seeds(self, path: Path) -> list[str]:
         if not path.exists():
@@ -145,11 +153,6 @@ class Command(BaseCommand):
     ) -> None:
         out_dir.mkdir(parents=True, exist_ok=True)
         rows = [release_groups[mbid] for mbid in sorted(release_groups)]
-        (out_dir / ALBUMS_NAME).write_text(
-            json.dumps({"release-groups": rows}, indent=1, ensure_ascii=False, sort_keys=True)
-            + "\n",
-            encoding="utf-8",
-        )
         manifest = {
             "version": FIXTURE_VERSION,
             "source": RECORDED_SOURCE,
@@ -157,11 +160,18 @@ class Command(BaseCommand):
             "counts": {"albums": len(rows), "artists": artists},
             "attribution": ATTRIBUTION,
         }
-        (out_dir / MANIFEST_NAME).write_text(
-            json.dumps(manifest, indent=1, ensure_ascii=False, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        _replace_json(out_dir / ALBUMS_NAME, {"release-groups": rows})
+        _replace_json(out_dir / MANIFEST_NAME, manifest)
         self.stdout.write(self.style.SUCCESS(f"Recorded {len(rows)} release groups to {out_dir}."))
+
+
+def _replace_json(path: Path, document: dict[str, Any]) -> None:
+    staged = path.with_suffix(".part")
+    staged.write_text(
+        json.dumps(document, indent=1, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    staged.replace(path)
 
 
 def _is_supported(hit: dict[str, Any]) -> bool:
