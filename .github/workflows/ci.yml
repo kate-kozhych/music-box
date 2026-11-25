@@ -320,7 +320,7 @@ jobs:
       - name: Build and start the stack
         run: |
           cp .env.example .env
-          docker compose up --build -d --wait --wait-timeout 600
+          docker compose up --build -d --wait --wait-timeout 600 gateway core-consumer core-worker notification
       - name: Seed
         run: docker compose run --rm seed && docker compose run --rm seed-catalog
       - name: Smoke test through the gateway
