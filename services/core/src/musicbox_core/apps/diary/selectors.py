@@ -130,7 +130,10 @@ def count_entries(user_id: uuid.UUID, viewer: Principal | None) -> int:
     return entries.count()
 
 
-def entry_payload(entry: DiaryEntry, *, excerpt: bool = False) -> dict[str, Any]:
+def entry_payload(
+    entry: DiaryEntry, viewer: Principal | None, *, excerpt: bool = False
+) -> dict[str, Any]:
+    may_see_reason = viewer is not None and (viewer.is_admin or viewer.user_id == entry.user_id)
     truncated = excerpt and len(entry.note) > EXCERPT
     return {
         "id": str(entry.id),
@@ -143,6 +146,7 @@ def entry_payload(entry: DiaryEntry, *, excerpt: bool = False) -> dict[str, Any]
         "relisten": getattr(entry, "relisten", False),
         "visibility": entry.visibility,
         "hidden": entry.hidden_at is not None,
+        "hidden_reason": entry.hidden_reason if may_see_reason else None,
         "created_at": entry.created_at,
         "updated_at": entry.updated_at,
     }

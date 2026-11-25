@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import socket
 import time
 import uuid
@@ -94,7 +95,7 @@ def make_token(signing_key: Ed25519PrivateKey) -> TokenFactory:
             "role": "USER",
             "typ": "access",
             "jti": uuid.uuid4().hex,
-            "iat": round(now, 3),
+            "iat": math.floor(now * 1000) / 1000,
             "exp": int(now) + 900,
         }
         payload.update(claims)

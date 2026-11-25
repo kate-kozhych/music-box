@@ -1,0 +1,25 @@
+{
+  "properties": {
+    "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+    },
+    "target_type": {
+      "enum": [
+        "post",
+        "review",
+        "comment",
+        "diary_entry"
+      ],
+      "title": "Target Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "target_type",
+    "target_id"
+  ],
+  "title": "ContentRestoredV1",
+  "type": "object"
+}

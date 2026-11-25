@@ -33,7 +33,7 @@ class DiaryEntriesView(APIView):
         body.is_valid(raise_exception=True)
         entry = services.log_listen(principal, body.validated_data)
         return Response(
-            DiaryEntrySerializer(selectors.entry_payload(entry)).data,
+            DiaryEntrySerializer(selectors.entry_payload(entry, principal)).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -46,8 +46,9 @@ class DiaryEntryView(APIView):
         tags=["diary"],
     )
     def get(self, request: Request, entry_id: str) -> Response:
-        entry = selectors.get_entry(entry_id, principal_of(request))
-        return Response(DiaryEntrySerializer(selectors.entry_payload(entry)).data)
+        viewer = principal_of(request)
+        entry = selectors.get_entry(entry_id, viewer)
+        return Response(DiaryEntrySerializer(selectors.entry_payload(entry, viewer)).data)
 
     @extend_schema(
         request=DiaryEditSerializer,
@@ -61,7 +62,7 @@ class DiaryEntryView(APIView):
         body = DiaryEditSerializer(data=request.data)
         body.is_valid(raise_exception=True)
         entry = services.edit_entry(principal, entry_id, body.validated_data)
-        return Response(DiaryEntrySerializer(selectors.entry_payload(entry)).data)
+        return Response(DiaryEntrySerializer(selectors.entry_payload(entry, principal)).data)
 
     @extend_schema(
         request=None,
@@ -97,7 +98,7 @@ class UserDiaryView(APIView):
             cursor=request.query_params.get("cursor") or None,
         )
         payload = {
-            "items": [selectors.entry_payload(entry, excerpt=True) for entry in page.items],
+            "items": [selectors.entry_payload(entry, viewer, excerpt=True) for entry in page.items],
             "next_cursor": page.next_cursor,
         }
         return Response(DiaryPageSerializer(payload).data)

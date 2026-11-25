@@ -28,7 +28,7 @@ PAGE_PARAMS = [
 
 def _page_response(page: selectors.ReviewPage, viewer: Principal | None) -> Response:
     payload = {
-        "items": [selectors.review_payload(review, viewer, excerpt=True) for review in page.items],
+        "items": selectors.review_payloads(page.items, viewer, excerpt=True),
         "next_cursor": page.next_cursor,
     }
     return Response(ReviewPageSerializer(payload).data)

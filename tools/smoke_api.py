@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import http.cookiejar
 import json
+import os
 import secrets
 import sys
 import time
@@ -13,6 +14,8 @@ from typing import Any
 
 BASE = (sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080").rstrip("/")
 PASSWORD = "Secret123"
+ADMIN_USERNAME = os.environ.get("IDENTITY_ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.environ.get("IDENTITY_ADMIN_PASSWORD", "change-me-Admin-Passw0rd")
 FIXTURES = Path(__file__).resolve().parent.parent / "services/core/fixtures/catalog/release-groups.json"
 
 jar = http.cookiejar.CookieJar()
@@ -181,6 +184,58 @@ def check_music_logging(album_id: str, username: str, token: str) -> None:
     step("profile counts exclude private entries", counts == [1, 1, 1], body)
 
 
+def login(identifier: str, password: str) -> str:
+    status, body = call("POST", "/api/v1/auth/login", {"identifier": identifier, "password": password})
+    step(f"login {identifier} -> 200", status == 200, body)
+    return str(body["access_token"])
+
+
+def check_social(album_id: str, author: str, author_token: str, reader: str, reader_token: str) -> None:
+    status, post = call("POST", "/api/v1/posts", {"body": "Smoke post", "album_id": album_id}, token=author_token)
+    step("publish a post about an album -> 201", status == 201 and post["album"]["id"] == album_id, post)
+    path = f"/api/v1/posts/{post['id']}"
+    status, body = call("POST", "/api/v1/posts", {"body": "x"})
+    step("guest post -> 401", status == 401, body)
+    status, page = call("GET", f"/api/v1/users/{author}/posts")
+    step("guests read profile posts", status == 200 and [i["id"] for i in page["items"]] == [post["id"]], page)
+    status, comment = call("POST", f"{path}/comments", {"body": "Smoke comment"}, token=reader_token)
+    step("comment on a post -> 201", status == 201 and comment["author"]["username"] == reader, comment)
+    like = f"/api/v1/comments/{comment['id']}/like"
+    for target in (f"{path}/like", f"{path}/like", like):
+        status, body = call("PUT", target, token=reader_token)
+        step("like -> 204 (idempotent)", status == 204, body)
+    _, body = call("GET", path, token=reader_token)
+    step("the post shows exact counters and liked_by_me", (body["like_count"], body["comment_count"], body["liked_by_me"]) == (1, 1, True), body)
+    status, body = call("PATCH", f"/api/v1/comments/{comment['id']}", {"body": "x"}, token=author_token)
+    step("the post author cannot edit the comment -> 403", status == 403, body)
+    admin = login(ADMIN_USERNAME, ADMIN_PASSWORD)
+    moderation = f"/api/v1/admin/moderation/posts/{post['id']}"
+    status, body = call("POST", f"{moderation}/hide", {"reason": "smoke"}, token=reader_token)
+    step("a user cannot moderate -> 403", status == 403, body)
+    status, body = call("POST", f"{moderation}/hide", {"reason": "smoke"}, token=admin)
+    step("an admin hides the post -> 204", status == 204, body)
+    status, body = call("POST", f"{moderation}/hide", {"reason": "smoke"}, token=admin)
+    step("hiding again -> 409 already_hidden", status == 409 and body["code"] == "already_hidden", body)
+    step("the hidden post is 404 for guests", call("GET", path)[0] == 404)
+    status, body = call("GET", path, token=author_token)
+    step("the author sees the reason", status == 200 and body["hidden_reason"] == "smoke", body)
+    status, body = call("PUT", f"{path}/like", token=reader_token)
+    step("hidden content cannot be liked -> 404", status == 404, body)
+    status, body = call("POST", f"{moderation}/restore", token=admin)
+    step("an admin restores the post -> 204", status == 204, body)
+    status, log = call("GET", "/api/v1/admin/moderation/log?limit=2", token=admin)
+    step("the moderation log records both actions", [i["action"] for i in log["items"]] == ["restore", "hide"], log)
+    status, body = call("GET", "/api/v1/admin/users/moderation-log", token=admin)
+    step("the user moderation log is served by Identity", status == 200 and "items" in body, body)
+    status, body = call("DELETE", f"/api/v1/comments/{comment['id']}", token=reader_token)
+    step("delete my comment -> 204", status == 204, body)
+    _, body = call("GET", path)
+    step("the comment count follows", body["comment_count"] == 0, body)
+    status, body = call("DELETE", path, token=author_token)
+    step("delete my post -> 204", status == 204, body)
+    step("the deleted post is 404", call("GET", path)[0] == 404)
+
+
 def main() -> int:
     suffix = secrets.token_hex(3)
     alice, bob = f"alice_{suffix}", f"bob_{suffix}"
@@ -260,6 +315,10 @@ def main() -> int:
     wait_for("bob's projection reaches Core (event)", lambda: call("GET", f"/api/v1/users/{bob}")[0] == 200)
 
     check_music_logging(album_id, alice, token)
+
+    reader_token = login(f"{bob}@example.com", PASSWORD)
+    check_social(album_id, alice, token, bob, reader_token)
+    login(f"{alice}@example.com", PASSWORD)
 
     status, body = call("PUT", f"/api/v1/users/{bob}/follow", token=token)
     step("alice follows bob -> 204", status == 204, body)

@@ -22,6 +22,8 @@ class ErrorCode(StrEnum):
     REGISTRATION_CONFLICT = "registration_conflict"
     REVIEW_EXISTS = "review_exists"
     CONTENT_HIDDEN = "content_hidden"
+    ALREADY_HIDDEN = "already_hidden"
+    NOT_HIDDEN = "not_hidden"
     SELF_FOLLOW = "self_follow"
     LAST_ADMIN = "last_admin"
     CANNOT_BLOCK_SELF = "cannot_block_self"

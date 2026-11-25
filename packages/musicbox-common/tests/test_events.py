@@ -9,7 +9,11 @@ import pytest
 from pydantic import ValidationError
 
 from musicbox_common.events import (
+    COMMENT_CREATED,
+    CONTENT_REMOVED,
+    CONTENT_RESTORED,
     FOLLOW_CREATED,
+    LIKE_CREATED,
     PAYLOADS,
     USER_DELETED,
     USER_PROFILE_UPDATED,
@@ -43,6 +47,10 @@ def test_every_event_type_has_a_payload_contract() -> None:
         USER_STATUS_CHANGED,
         USER_DELETED,
         FOLLOW_CREATED,
+        LIKE_CREATED,
+        COMMENT_CREATED,
+        CONTENT_REMOVED,
+        CONTENT_RESTORED,
     }
 
 
@@ -53,6 +61,10 @@ def test_every_event_type_is_namespaced_and_versioned() -> None:
         USER_STATUS_CHANGED,
         USER_DELETED,
         FOLLOW_CREATED,
+        LIKE_CREATED,
+        COMMENT_CREATED,
+        CONTENT_REMOVED,
+        CONTENT_RESTORED,
     ]
 
     assert len(set(types)) == len(types)

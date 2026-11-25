@@ -5,9 +5,15 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 
-from identity.administration.handlers import block_user, list_users, unblock_user
+from identity.administration.handlers import (
+    block_user,
+    list_moderation_log,
+    list_users,
+    unblock_user,
+)
 from identity.web import Container, require
 from musicbox_common.auth import Permission, Principal
+from musicbox_common.pagination import parse_limit
 
 router = APIRouter(prefix="/api/v1/admin/users", tags=["admin"])
 
@@ -29,6 +35,22 @@ class AdminUserPage(BaseModel):
     page: int
     size: int
     total: int
+
+
+class ModerationLogEntryOut(BaseModel):
+    id: uuid.UUID
+    admin_id: uuid.UUID
+    admin_username: str
+    account_id: uuid.UUID
+    account_username: str
+    action: str
+    reason: str | None
+    created_at: datetime
+
+
+class ModerationLogPage(BaseModel):
+    items: list[ModerationLogEntryOut]
+    next_cursor: str | None
 
 
 class BlockRequest(BaseModel):
@@ -72,6 +94,28 @@ async def list_users_endpoint(
             page=result.page,
             size=result.size,
             total=result.total,
+        )
+
+
+@router.get(
+    "/moderation-log",
+    response_model=ModerationLogPage,
+    summary="User moderation log, newest first (DR-56)",
+)
+async def moderation_log_endpoint(
+    admin: CanManageUsers,
+    container: Container,
+    limit: Annotated[str | None, Query(description="1-50, default 20")] = None,
+    cursor: Annotated[str | None, Query(description="next_cursor from the previous page")] = None,
+) -> ModerationLogPage:
+    async with container.uow() as uow:
+        page = await list_moderation_log(uow, limit=parse_limit(limit), cursor=cursor)
+        return ModerationLogPage(
+            items=[
+                ModerationLogEntryOut.model_validate(entry, from_attributes=True)
+                for entry in page.items
+            ],
+            next_cursor=page.next_cursor,
         )
 
 

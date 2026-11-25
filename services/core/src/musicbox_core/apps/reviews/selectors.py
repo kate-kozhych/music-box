@@ -12,7 +12,9 @@ from musicbox_common.errors import FieldError, not_found, validation_failed
 from musicbox_common.pagination import Cursor
 from musicbox_core.apps.catalog.models import Album
 from musicbox_core.apps.catalog.selectors import album_summary
+from musicbox_core.apps.platform.content import ContentType
 from musicbox_core.apps.platform.cursors import cursor_uuid
+from musicbox_core.apps.platform.engagement import liked_by
 from musicbox_core.apps.ratings.models import Rating
 from musicbox_core.apps.ratings.values import to_wire
 from musicbox_core.apps.reviews.models import Review
@@ -111,8 +113,19 @@ def _after(cursor: Cursor, sort: str) -> Q:
     raise validation_failed([FieldError("cursor", "invalid", "The cursor is malformed.")])
 
 
-def review_payload(
-    review: Review, viewer: Principal | None, *, excerpt: bool = False
+def review_payload(review: Review, viewer: Principal | None) -> dict[str, Any]:
+    return review_payloads([review], viewer)[0]
+
+
+def review_payloads(
+    reviews: Sequence[Review], viewer: Principal | None, *, excerpt: bool = False
+) -> list[dict[str, Any]]:
+    liked = liked_by(viewer, ContentType.REVIEW, [review.id for review in reviews])
+    return [_payload(review, viewer, review.id in liked, excerpt) for review in reviews]
+
+
+def _payload(
+    review: Review, viewer: Principal | None, liked: bool, excerpt: bool
 ) -> dict[str, Any]:
     truncated = excerpt and len(review.body) > EXCERPT
     may_see_reason = viewer is not None and (viewer.is_admin or viewer.user_id == review.user_id)
@@ -125,6 +138,7 @@ def review_payload(
         "truncated": truncated,
         "like_count": review.like_count,
         "comment_count": review.comment_count,
+        "liked_by_me": liked,
         "created_at": review.created_at,
         "edited_at": review.edited_at,
         "edited": review.edited_at is not None,
@@ -135,7 +149,7 @@ def review_payload(
 
 def recent_album_reviews(album: Album, viewer: Principal | None) -> list[dict[str, Any]]:
     page = album_reviews(album, viewer, sort=RECENT, limit=ALBUM_PAGE_REVIEWS, cursor=None)
-    return [review_payload(review, viewer, excerpt=True) for review in page.items]
+    return review_payloads(page.items, viewer, excerpt=True)
 
 
 def viewer_review(album: Album, viewer: Principal) -> dict[str, Any]:
