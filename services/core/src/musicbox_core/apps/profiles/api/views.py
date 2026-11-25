@@ -31,7 +31,7 @@ class PublicProfileView(APIView):
                 "ratings": profile.ratings,
                 "reviews": profile.reviews,
                 "diary_entries": profile.diary_entries,
-                "posts": 0,
+                "posts": profile.posts,
                 "followers": profile.followers,
                 "following": profile.following,
             },
