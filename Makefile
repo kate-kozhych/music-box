@@ -57,6 +57,10 @@ format: ## Auto-format Python (Ruff) and frontend (Prettier) sources
 	@for p in $(PY_PROJECTS); do (cd $$p && poetry run ruff check --fix . && poetry run ruff format .); done
 	cd $(FRONTEND) && npm run format
 
+.PHONY: contracts-check
+contracts-check: ## Fail if the committed OpenAPI documents are stale (NFR-075)
+	python3 tools/export_openapi.py --check
+
 # --- Tests -------------------------------------------------------------------
 
 .PHONY: test
@@ -128,9 +132,10 @@ reset: ## Stop the stack and DELETE all volumes (databases, keys, avatars)
 	$(COMPOSE) down -v --remove-orphans
 
 .PHONY: seed
-seed: ## Run the idempotent seed job (admin, demo users, catalog fixtures)
+seed: ## Run the idempotent seed jobs (admin account, catalog fixtures)
 	$(require_compose)
 	$(COMPOSE) run --rm seed
+	$(COMPOSE) run --rm seed-catalog
 
 # --- Evaluation --------------------------------------------------------------
 

@@ -1,0 +1,882 @@
+{
+  "components": {
+    "schemas": {
+      "AlbumDetail": {
+        "properties": {
+          "artist_credit": {
+            "type": "string"
+          },
+          "artists": {
+            "items": {
+              "$ref": "#/components/schemas/ArtistRef"
+            },
+            "type": "array"
+          },
+          "attribution": {
+            "$ref": "#/components/schemas/Attribution"
+          },
+          "cover_url": {
+            "nullable": true,
+            "type": "string"
+          },
+          "cover_url_500": {
+            "nullable": true,
+            "type": "string"
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/Genre"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mbid": {
+            "type": "string"
+          },
+          "recent_reviews": {
+            "items": {
+              "additionalProperties": {},
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "release_date": {
+            "nullable": true,
+            "type": "string"
+          },
+          "release_date_precision": {
+            "nullable": true,
+            "type": "string"
+          },
+          "secondary_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/AlbumStats"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "viewer": {
+            "$ref": "#/components/schemas/ViewerState"
+          }
+        },
+        "required": [
+          "artist_credit",
+          "artists",
+          "attribution",
+          "cover_url",
+          "cover_url_500",
+          "genres",
+          "id",
+          "mbid",
+          "recent_reviews",
+          "release_date",
+          "release_date_precision",
+          "secondary_types",
+          "source",
+          "stats",
+          "title",
+          "type",
+          "viewer"
+        ],
+        "type": "object"
+      },
+      "AlbumSearchItem": {
+        "properties": {
+          "artist_credit": {
+            "type": "string"
+          },
+          "cover_url": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "imported": {
+            "type": "boolean"
+          },
+          "mbid": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "year": {
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "artist_credit",
+          "cover_url",
+          "id",
+          "imported",
+          "mbid",
+          "title",
+          "type",
+          "year"
+        ],
+        "type": "object"
+      },
+      "AlbumSearchPage": {
+        "properties": {
+          "attribution": {
+            "$ref": "#/components/schemas/Attribution"
+          },
+          "external_status": {
+            "$ref": "#/components/schemas/ExternalStatusEnum"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AlbumSearchItem"
+            },
+            "type": "array"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "attribution",
+          "external_status",
+          "items",
+          "page",
+          "size",
+          "total"
+        ],
+        "type": "object"
+      },
+      "AlbumStats": {
+        "properties": {
+          "average": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "distribution": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "average",
+          "count",
+          "distribution"
+        ],
+        "type": "object"
+      },
+      "ArtistRef": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "join_phrase": {
+            "type": "string"
+          },
+          "mbid": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "join_phrase",
+          "mbid",
+          "name",
+          "url"
+        ],
+        "type": "object"
+      },
+      "Attribution": {
+        "properties": {
+          "cover_art": {
+            "$ref": "#/components/schemas/CoverArtAttribution"
+          },
+          "licences": {
+            "items": {
+              "$ref": "#/components/schemas/AttributionLicence"
+            },
+            "type": "array"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cover_art",
+          "licences",
+          "source",
+          "text"
+        ],
+        "type": "object"
+      },
+      "AttributionLicence": {
+        "properties": {
+          "applies_to": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "applies_to",
+          "name",
+          "url"
+        ],
+        "type": "object"
+      },
+      "Counts": {
+        "properties": {
+          "diary_entries": {
+            "type": "integer"
+          },
+          "followers": {
+            "type": "integer"
+          },
+          "following": {
+            "type": "integer"
+          },
+          "posts": {
+            "type": "integer"
+          },
+          "ratings": {
+            "type": "integer"
+          },
+          "reviews": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "diary_entries",
+          "followers",
+          "following",
+          "posts",
+          "ratings",
+          "reviews"
+        ],
+        "type": "object"
+      },
+      "CoverArtAttribution": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "text",
+          "url"
+        ],
+        "type": "object"
+      },
+      "ExternalStatusEnum": {
+        "description": "* `ok` - ok\n* `cached` - cached\n* `unavailable` - unavailable\n* `offline` - offline",
+        "enum": [
+          "ok",
+          "cached",
+          "unavailable",
+          "offline"
+        ],
+        "type": "string"
+      },
+      "Favourites": {
+        "properties": {
+          "albums": {
+            "items": {
+              "additionalProperties": {},
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "artists": {
+            "items": {
+              "additionalProperties": {},
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "albums",
+          "artists"
+        ],
+        "type": "object"
+      },
+      "FollowEntry": {
+        "properties": {
+          "followed_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserSummary"
+          },
+          "viewer_follows": {
+            "nullable": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "followed_at",
+          "user",
+          "viewer_follows"
+        ],
+        "type": "object"
+      },
+      "FollowPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FollowEntry"
+            },
+            "type": "array"
+          },
+          "next_cursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "type": "object"
+      },
+      "Genre": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug"
+        ],
+        "type": "object"
+      },
+      "PublicProfile": {
+        "properties": {
+          "avatar_url": {
+            "nullable": true,
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/Counts"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "favourites": {
+            "$ref": "#/components/schemas/Favourites"
+          },
+          "joined_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "description": "Only shown to Admins (P02).",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "viewer": {
+            "$ref": "#/components/schemas/Viewer"
+          }
+        },
+        "required": [
+          "avatar_url",
+          "bio",
+          "counts",
+          "display_name",
+          "favourites",
+          "joined_at",
+          "user_id",
+          "username",
+          "viewer"
+        ],
+        "type": "object"
+      },
+      "Source": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url"
+        ],
+        "type": "object"
+      },
+      "UserSummary": {
+        "properties": {
+          "avatar_url": {
+            "nullable": true,
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "avatar_url",
+          "display_name",
+          "user_id",
+          "username"
+        ],
+        "type": "object"
+      },
+      "Viewer": {
+        "properties": {
+          "follows": {
+            "nullable": true,
+            "type": "boolean"
+          },
+          "is_self": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "follows",
+          "is_self"
+        ],
+        "type": "object"
+      },
+      "ViewerState": {
+        "properties": {
+          "diary_count": {
+            "type": "integer"
+          },
+          "rating": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "review_id": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "diary_count",
+          "rating",
+          "review_id"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Public profiles, follows and (later) the music catalog, content and feed.",
+    "title": "Musicbox Core API",
+    "version": "0.2.0"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/api/v1/albums": {
+      "get": {
+        "operationId": "albums_search",
+        "parameters": [
+          {
+            "description": "1-based, default 1",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "2-100 characters",
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-50, default 20",
+            "in": "query",
+            "name": "size",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlbumSearchPage"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Search albums (local catalog, merged with MusicBrainz in live mode)",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/albums/mbid/{mbid}": {
+      "get": {
+        "operationId": "albums_retrieve_by_mbid",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mbid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlbumDetail"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Album page by MusicBrainz id, imported on demand",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/albums/{album_id}": {
+      "get": {
+        "operationId": "albums_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "album_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlbumDetail"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Album page by local id",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/users/{username}": {
+      "get": {
+        "operationId": "users_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfile"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Public profile (guest-readable; blocked users are 404 except for Admins)",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/api/v1/users/{username}/follow": {
+      "delete": {
+        "operationId": "users_follow_destroy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Unfollow a user (idempotent)",
+        "tags": [
+          "social"
+        ]
+      },
+      "put": {
+        "operationId": "users_follow_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Follow a user (idempotent)",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/users/{username}/followers": {
+      "get": {
+        "operationId": "users_followers_retrieve",
+        "parameters": [
+          {
+            "description": "next_cursor from the previous page",
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-50, default 20",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowPage"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Who follows this user (newest first)",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/users/{username}/following": {
+      "get": {
+        "operationId": "users_following_retrieve",
+        "parameters": [
+          {
+            "description": "next_cursor from the previous page",
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-50, default 20",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowPage"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Whom this user follows (newest first)",
+        "tags": [
+          "social"
+        ]
+      }
+    }
+  }
+}

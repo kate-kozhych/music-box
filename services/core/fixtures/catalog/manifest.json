@@ -1,0 +1,31 @@
+{
+ "attribution": {
+  "cover_art": "No cover art is recorded or redistributed. Cover art belongs to its copyright holders and is served by the Cover Art Archive; offline mode renders generated placeholders instead (A-05, US-014 AC5).",
+  "endpoints": [
+   "GET /ws/2/release-group?query=...&fmt=json",
+   "GET /ws/2/release-group?artist={mbid}&type=album|ep&inc=artist-credits+genres&fmt=json"
+  ],
+  "licences": [
+   {
+    "applies_to": "MusicBrainz core data (titles, dates, release groups, artists)",
+    "name": "CC0 1.0",
+    "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+   },
+   {
+    "applies_to": "MusicBrainz supplementary data (genres and their vote counts)",
+    "name": "CC BY-NC-SA 3.0",
+    "url": "https://creativecommons.org/licenses/by-nc-sa/3.0/"
+   }
+  ],
+  "notes": "Recorded once, within the published 1 request/second limit, with the project User-Agent. Re-record with `manage.py record_catalog_fixtures`.",
+  "source": "MusicBrainz",
+  "source_url": "https://musicbrainz.org"
+ },
+ "counts": {
+  "albums": 278,
+  "artists": 110
+ },
+ "recorded_at": "2026-11-25",
+ "source": "MusicBrainz",
+ "version": 1
+}

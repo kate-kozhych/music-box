@@ -26,6 +26,10 @@ class ErrorCode(StrEnum):
     INVALID_CURRENT_PASSWORD = "invalid_current_password"  # noqa: S105  # a wire error code, not a secret
     FILE_TOO_LARGE = "file_too_large"
     UNSUPPORTED_MEDIA_TYPE = "unsupported_media_type"
+    UNSUPPORTED_RELEASE_TYPE = "unsupported_release_type"
+    UNKNOWN_ALBUM = "unknown_album"
+    UNKNOWN_ARTIST = "unknown_artist"
+    CATALOG_UNAVAILABLE = "catalog_unavailable"
     RATE_LIMITED = "rate_limited"
     SERVICE_UNAVAILABLE = "service_unavailable"
     INTERNAL_ERROR = "internal_error"
@@ -49,6 +53,10 @@ _TITLES: dict[ErrorCode, str] = {
     ErrorCode.INVALID_CURRENT_PASSWORD: "Invalid current password",
     ErrorCode.FILE_TOO_LARGE: "File too large",
     ErrorCode.UNSUPPORTED_MEDIA_TYPE: "Unsupported media type",
+    ErrorCode.UNSUPPORTED_RELEASE_TYPE: "Unsupported release type",
+    ErrorCode.UNKNOWN_ALBUM: "Unknown album",
+    ErrorCode.UNKNOWN_ARTIST: "Unknown artist",
+    ErrorCode.CATALOG_UNAVAILABLE: "Catalog temporarily unavailable",
     ErrorCode.RATE_LIMITED: "Too many requests",
     ErrorCode.SERVICE_UNAVAILABLE: "Service unavailable",
     ErrorCode.INTERNAL_ERROR: "Internal server error",
@@ -139,6 +147,15 @@ def rate_limited(retry_after_seconds: int) -> AppError:
     )
 
 
+def catalog_unavailable(retry_after_seconds: int) -> AppError:
+    return AppError(
+        503,
+        ErrorCode.CATALOG_UNAVAILABLE,
+        "The music catalog service is temporarily unavailable. Try again shortly.",
+        headers={"Retry-After": str(max(1, retry_after_seconds))},
+    )
+
+
 def internal_error() -> AppError:
     return AppError(500, ErrorCode.INTERNAL_ERROR, "An unexpected error occurred.")
 
@@ -148,6 +165,7 @@ __all__ = [
     "AppError",
     "ErrorCode",
     "FieldError",
+    "catalog_unavailable",
     "conflict",
     "file_too_large",
     "forbidden",

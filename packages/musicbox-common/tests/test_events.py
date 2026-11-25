@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
 from musicbox_common.events import (
     FOLLOW_CREATED,
+    PAYLOADS,
     USER_DELETED,
     USER_PROFILE_UPDATED,
     USER_REGISTERED,
@@ -18,8 +21,29 @@ from musicbox_common.events import (
     UserProfileUpdatedV1,
     UserRegisteredV1,
     UserStatusChangedV1,
+    contract_schemas,
     new_envelope,
 )
+
+CONTRACTS = Path(__file__).resolve().parents[3] / "contracts" / "events"
+
+
+def test_the_committed_event_schemas_match_the_payload_models() -> None:
+    committed = {
+        path.stem: json.loads(path.read_text(encoding="utf-8")) for path in CONTRACTS.glob("*.json")
+    }
+
+    assert committed == contract_schemas()
+
+
+def test_every_event_type_has_a_payload_contract() -> None:
+    assert set(PAYLOADS) == {
+        USER_REGISTERED,
+        USER_PROFILE_UPDATED,
+        USER_STATUS_CHANGED,
+        USER_DELETED,
+        FOLLOW_CREATED,
+    }
 
 
 def test_every_event_type_is_namespaced_and_versioned() -> None:

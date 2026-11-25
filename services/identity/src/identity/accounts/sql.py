@@ -39,6 +39,7 @@ class SqlAccountRepository:
             stmt = (
                 select(Account.id)
                 .where(Account.role == "ADMIN", Account.status == AccountStatus.ACTIVE.value)
+                .order_by(Account.id)
                 .with_for_update()
             )
             return len((await self._session.scalars(stmt)).all())

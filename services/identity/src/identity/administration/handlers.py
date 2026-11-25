@@ -100,6 +100,7 @@ async def block_user(
 ) -> None:
     if account_id == admin.user_id:
         raise conflict(ErrorCode.CANNOT_BLOCK_SELF, "You can't block your own account.")
+    await uow.accounts.count_active_admins(for_update=True)
     account = await _load_target(uow, account_id)
     if account.status == AccountStatus.BLOCKED:
         return

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from musicbox_common.auth import Principal, Role
 from musicbox_common.events import (
+    PAYLOADS,
     USER_DELETED,
     USER_PROFILE_UPDATED,
     USER_REGISTERED,
@@ -15,6 +17,7 @@ from musicbox_common.events import (
 from musicbox_core.apps.platform.messaging import process_event
 from musicbox_core.apps.users.handlers import HANDLERS
 from musicbox_core.apps.users.models import UserProfile
+from musicbox_core.apps.users.services import ensure_profile
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
@@ -87,3 +90,86 @@ def test_registered_then_updated_then_blocked_then_deleted() -> None:
 
 def test_unknown_event_types_are_acknowledged() -> None:
     assert process_event(_event("identity.user.something_new.v1", {}), HANDLERS) is True
+
+
+def _apply(event_type: str, user_id: uuid.UUID, **payload: object) -> None:
+    process_event(_event(event_type, {"user_id": str(user_id), **payload}), HANDLERS)
+
+
+def _register(user_id: uuid.UUID, version: int = 1) -> None:
+    _apply(USER_REGISTERED, user_id, username="ann", display_name="Ann", profile_version=version)
+
+
+def _set_status(user_id: uuid.UUID, status: str, changed_at: datetime) -> None:
+    _apply(USER_STATUS_CHANGED, user_id, status=status, changed_at=changed_at.isoformat())
+
+
+def test_a_stale_status_change_is_ignored() -> None:
+    user_id, now = uuid.uuid4(), datetime.now(UTC)
+    _register(user_id)
+
+    _set_status(user_id, "blocked", now)
+    _set_status(user_id, "active", now - timedelta(minutes=5))
+
+    assert UserProfile.objects.get(user_id=user_id).status == "blocked"
+
+
+def test_a_newer_status_change_is_applied() -> None:
+    user_id, now = uuid.uuid4(), datetime.now(UTC)
+    _register(user_id)
+
+    _set_status(user_id, "blocked", now)
+    _set_status(user_id, "active", now + timedelta(minutes=5))
+
+    assert UserProfile.objects.get(user_id=user_id).status == "active"
+
+
+def test_a_block_that_overtakes_the_registration_is_kept() -> None:
+    user_id = uuid.uuid4()
+
+    _set_status(user_id, "blocked", datetime.now(UTC))
+    _register(user_id)
+
+    profile = UserProfile.objects.get(user_id=user_id)
+    assert (profile.username, profile.display_name, profile.status) == ("ann", "Ann", "blocked")
+
+
+def test_a_profile_update_that_overtakes_the_registration_is_kept() -> None:
+    user_id = uuid.uuid4()
+
+    _apply(USER_PROFILE_UPDATED, user_id, display_name="Ann B.", bio="jazz", profile_version=2)
+    _register(user_id)
+
+    profile = UserProfile.objects.get(user_id=user_id)
+    assert (profile.username, profile.display_name, profile.bio) == ("ann", "Ann B.", "jazz")
+
+
+def test_a_first_request_completes_a_projection_that_awaits_registration() -> None:
+    user_id = uuid.uuid4()
+    _apply(USER_PROFILE_UPDATED, user_id, display_name="Ann B.", bio="", profile_version=2)
+
+    principal = Principal(
+        user_id=user_id, username="ann", role=Role.USER, jti="j", issued_at=0, expires_at=1
+    )
+
+    assert ensure_profile(principal).username == "ann"
+
+
+@pytest.mark.parametrize("registered_first", [True, False])
+def test_late_events_never_restore_a_deleted_user(registered_first: bool) -> None:
+    user_id, now = uuid.uuid4(), datetime.now(UTC)
+    if registered_first:
+        _register(user_id)
+    _apply(USER_DELETED, user_id, deleted_at=now.isoformat())
+
+    _register(user_id, version=5)
+    _apply(USER_PROFILE_UPDATED, user_id, display_name="Ann", bio="jazz", profile_version=6)
+    _set_status(user_id, "active", now + timedelta(minutes=5))
+
+    profile = UserProfile.objects.get(user_id=user_id)
+    assert (profile.status, profile.username) == ("deleted", f"~{user_id.hex}")
+    assert (profile.display_name, profile.bio) == ("[deleted]", "")
+
+
+def test_every_identity_event_contract_has_a_handler() -> None:
+    assert set(HANDLERS) == {name for name in PAYLOADS if name.startswith("identity.user.")}

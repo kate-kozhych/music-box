@@ -28,6 +28,7 @@ class DeleteAccount:
     account_id: uuid.UUID
     password: str
     client_ip: str
+    is_admin: bool = False
 
 
 @dataclass(frozen=True, slots=True)

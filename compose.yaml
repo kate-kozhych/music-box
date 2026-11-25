@@ -206,6 +206,15 @@ services:
       notification: { condition: service_healthy }
     restart: "no"
 
+  seed-catalog:
+    build: *core-build
+    command: ["python", "manage.py", "import_catalog_fixtures", "--require-minimums"]
+    environment: *core-env
+    networks: [backend]
+    depends_on:
+      migrate-core: { condition: service_completed_successfully }
+    restart: "no"
+
   # --- Services -------------------------------------------------------------
   identity:
     build: *identity-build
@@ -231,6 +240,7 @@ services:
       mysql: { condition: service_healthy }
       redis: { condition: service_healthy }
       migrate-core: { condition: service_completed_successfully }
+      seed-catalog: { condition: service_completed_successfully }
       identity: { condition: service_healthy }
     restart: unless-stopped
 
@@ -260,7 +270,7 @@ services:
        "--schedule=/tmp/celerybeat-schedule", "--loglevel=INFO",
        "--concurrency=2", "--queues=core", "--without-gossip", "--without-mingle"]
     environment: *core-env
-    networks: [backend]
+    networks: [edge, backend]
     healthcheck:
       test: ["CMD-SHELL", 'celery -A musicbox_core.config.celery inspect ping --destination "celery@$$HOSTNAME" --timeout 10']
       interval: 15s
@@ -344,6 +354,8 @@ services:
       CORE_DB_USER: root
       CORE_DB_PASSWORD: ${CORE_DB_ROOT_PASSWORD:?set CORE_DB_ROOT_PASSWORD in .env}
       CORE_REDIS_AUTH_URL: redis://redis:6379/15
+      CORE_REDIS_CACHE_URL: redis://redis:6379/11
+      CORE_CATALOG_MODE: offline
     networks: [backend]
     depends_on:
       mysql: { condition: service_healthy }
