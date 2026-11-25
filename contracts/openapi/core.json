@@ -37,8 +37,7 @@
           },
           "recent_reviews": {
             "items": {
-              "additionalProperties": {},
-              "type": "object"
+              "$ref": "#/components/schemas/RecentReview"
             },
             "type": "array"
           },
@@ -193,6 +192,43 @@
         ],
         "type": "object"
       },
+      "AlbumSummary": {
+        "properties": {
+          "artist_credit": {
+            "type": "string"
+          },
+          "cover_url": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mbid": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "year": {
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "artist_credit",
+          "cover_url",
+          "id",
+          "mbid",
+          "title",
+          "type",
+          "year"
+        ],
+        "type": "object"
+      },
       "ArtistRef": {
         "properties": {
           "id": {
@@ -318,6 +354,113 @@
         ],
         "type": "object"
       },
+      "DiaryCreateRequest": {
+        "properties": {
+          "album_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "listened_on": {
+            "format": "date",
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "rating": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/VisibilityEnum"
+          }
+        },
+        "required": [
+          "album_id"
+        ],
+        "type": "object"
+      },
+      "DiaryEntry": {
+        "properties": {
+          "album": {
+            "$ref": "#/components/schemas/AlbumSummary"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "listened_on": {
+            "format": "date",
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "rating": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "relisten": {
+            "type": "boolean"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserSummary"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/VisibilityEnum"
+          }
+        },
+        "required": [
+          "album",
+          "created_at",
+          "hidden",
+          "id",
+          "listened_on",
+          "note",
+          "rating",
+          "relisten",
+          "truncated",
+          "updated_at",
+          "user",
+          "visibility"
+        ],
+        "type": "object"
+      },
+      "DiaryPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DiaryEntry"
+            },
+            "type": "array"
+          },
+          "next_cursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "type": "object"
+      },
       "ExternalStatusEnum": {
         "description": "* `ok` - ok\n* `cached` - cached\n* `unavailable` - unavailable\n* `offline` - offline",
         "enum": [
@@ -406,6 +549,37 @@
         ],
         "type": "object"
       },
+      "PatchedDiaryEditRequest": {
+        "properties": {
+          "listened_on": {
+            "format": "date",
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "rating": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/VisibilityEnum"
+          }
+        },
+        "type": "object"
+      },
+      "PatchedReviewEditRequest": {
+        "properties": {
+          "body": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "PublicProfile": {
         "properties": {
           "avatar_url": {
@@ -453,6 +627,256 @@
           "user_id",
           "username",
           "viewer"
+        ],
+        "type": "object"
+      },
+      "RatingInputRequest": {
+        "properties": {
+          "value": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "type": "object"
+      },
+      "RatingItem": {
+        "properties": {
+          "album": {
+            "$ref": "#/components/schemas/AlbumSummary"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "value": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "album",
+          "created_at",
+          "updated_at",
+          "value"
+        ],
+        "type": "object"
+      },
+      "RatingPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RatingItem"
+            },
+            "type": "array"
+          },
+          "next_cursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "type": "object"
+      },
+      "RatingResult": {
+        "properties": {
+          "album_stats": {
+            "$ref": "#/components/schemas/AlbumStats"
+          },
+          "value": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "album_stats",
+          "value"
+        ],
+        "type": "object"
+      },
+      "RecentReview": {
+        "properties": {
+          "author": {
+            "$ref": "#/components/schemas/RecentReviewAuthor"
+          },
+          "body": {
+            "type": "string"
+          },
+          "comment_count": {
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "edited": {
+            "type": "boolean"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "like_count": {
+            "type": "integer"
+          },
+          "rating": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "author",
+          "body",
+          "comment_count",
+          "created_at",
+          "edited",
+          "hidden",
+          "id",
+          "like_count",
+          "rating",
+          "truncated"
+        ],
+        "type": "object"
+      },
+      "RecentReviewAuthor": {
+        "properties": {
+          "avatar_url": {
+            "nullable": true,
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "avatar_url",
+          "display_name",
+          "user_id",
+          "username"
+        ],
+        "type": "object"
+      },
+      "Review": {
+        "properties": {
+          "album": {
+            "$ref": "#/components/schemas/AlbumSummary"
+          },
+          "author": {
+            "$ref": "#/components/schemas/UserSummary"
+          },
+          "body": {
+            "type": "string"
+          },
+          "comment_count": {
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "edited": {
+            "type": "boolean"
+          },
+          "edited_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "hidden_reason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "like_count": {
+            "type": "integer"
+          },
+          "rating": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "album",
+          "author",
+          "body",
+          "comment_count",
+          "created_at",
+          "edited",
+          "edited_at",
+          "hidden",
+          "hidden_reason",
+          "id",
+          "like_count",
+          "rating",
+          "truncated"
+        ],
+        "type": "object"
+      },
+      "ReviewCreateRequest": {
+        "properties": {
+          "body": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "rating": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      },
+      "ReviewPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Review"
+            },
+            "type": "array"
+          },
+          "next_cursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
         ],
         "type": "object"
       },
@@ -534,6 +958,14 @@
           "review_id"
         ],
         "type": "object"
+      },
+      "VisibilityEnum": {
+        "description": "* `public` - Public\n* `private` - Private",
+        "enum": [
+          "public",
+          "private"
+        ],
+        "type": "string"
       }
     },
     "securitySchemes": {
@@ -679,6 +1111,442 @@
         ]
       }
     },
+    "/api/v1/albums/{album_id}/rating": {
+      "delete": {
+        "operationId": "albums_rating_destroy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "album_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Remove my rating of an album (idempotent)",
+        "tags": [
+          "ratings"
+        ]
+      },
+      "put": {
+        "operationId": "albums_rating_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "album_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RatingInputRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RatingResult"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Set or change my rating of an album",
+        "tags": [
+          "ratings"
+        ]
+      }
+    },
+    "/api/v1/albums/{album_id}/reviews": {
+      "get": {
+        "operationId": "album_reviews_list",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "album_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-50, default 20",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "enum": [
+                "popular",
+                "recent"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewPage"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Community reviews of an album",
+        "tags": [
+          "reviews"
+        ]
+      },
+      "post": {
+        "operationId": "album_reviews_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "album_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Write my review of an album",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/v1/diary-entries": {
+      "post": {
+        "operationId": "diary_entries_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiaryCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiaryEntry"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Log a listen in my diary",
+        "tags": [
+          "diary"
+        ]
+      }
+    },
+    "/api/v1/diary-entries/{entry_id}": {
+      "delete": {
+        "operationId": "diary_entries_destroy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Delete my diary entry",
+        "tags": [
+          "diary"
+        ]
+      },
+      "get": {
+        "operationId": "diary_entries_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiaryEntry"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "One diary entry",
+        "tags": [
+          "diary"
+        ]
+      },
+      "patch": {
+        "operationId": "diary_entries_partial_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedDiaryEditRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiaryEntry"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Edit my diary entry (never changes my album rating)",
+        "tags": [
+          "diary"
+        ]
+      }
+    },
+    "/api/v1/reviews/{review_id}": {
+      "delete": {
+        "operationId": "reviews_destroy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "review_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Delete my review",
+        "tags": [
+          "reviews"
+        ]
+      },
+      "get": {
+        "operationId": "reviews_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "review_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "One review",
+        "tags": [
+          "reviews"
+        ]
+      },
+      "patch": {
+        "operationId": "reviews_partial_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "review_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedReviewEditRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Edit my review",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
     "/api/v1/users/{username}": {
       "get": {
         "operationId": "users_retrieve",
@@ -713,6 +1581,65 @@
         "summary": "Public profile (guest-readable; blocked users are 404 except for Admins)",
         "tags": [
           "profiles"
+        ]
+      }
+    },
+    "/api/v1/users/{username}/diary": {
+      "get": {
+        "operationId": "user_diary_list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-50, default 30",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "year",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiaryPage"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "A user's diary (latest listens first; private entries only for the owner)",
+        "tags": [
+          "diary"
         ]
       }
     },
@@ -875,6 +1802,110 @@
         "summary": "Whom this user follows (newest first)",
         "tags": [
           "social"
+        ]
+      }
+    },
+    "/api/v1/users/{username}/ratings": {
+      "get": {
+        "operationId": "users_ratings_retrieve",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-50, default 20",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RatingPage"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "A user's ratings (newest first)",
+        "tags": [
+          "ratings"
+        ]
+      }
+    },
+    "/api/v1/users/{username}/reviews": {
+      "get": {
+        "operationId": "user_reviews_list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-50, default 20",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewPage"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "A user's reviews (newest first)",
+        "tags": [
+          "reviews"
         ]
       }
     }

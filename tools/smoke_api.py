@@ -118,7 +118,7 @@ def recorded_release_group() -> Any:
     return json.loads(FIXTURES.read_text(encoding="utf-8"))["release-groups"][0]
 
 
-def check_seeded_album() -> None:
+def check_seeded_album() -> str:
     row = recorded_release_group()
     step("recorded MusicBrainz fixtures are bundled", row is not None, FIXTURES)
     query = urllib.parse.urlencode({"q": f"{row['title']} {row['artist-credit'][0]['name']}", "size": 50})
@@ -134,10 +134,11 @@ def check_seeded_album() -> None:
     step("album page -> 200", status == 200 and album["title"] == row["title"], album)
     status, same = call("GET", f"/api/v1/albums/mbid/{row['id']}")
     step("album by MBID -> the same album", status == 200 and same["id"] == item["id"], same)
+    return str(item["id"])
 
 
-def check_catalog() -> None:
-    check_seeded_album()
+def check_catalog() -> str:
+    album_id = check_seeded_album()
     status, page = call("GET", "/api/v1/albums?q=homogenic")
     step("offline search -> 200 + attribution", status == 200 and page["external_status"] == "offline" and "attribution" in page, page)
     status, body = call("GET", "/api/v1/albums?q=a")
@@ -146,6 +147,36 @@ def check_catalog() -> None:
     step("a malformed MBID -> 422", status == 422, body)
     status, body = call("GET", "/api/v1/albums/mbid/ffffffff-ffff-4fff-8fff-ffffffffffff")
     step("an MBID outside the fixtures -> 404 offline", status == 404, body)
+    return album_id
+
+
+def check_music_logging(album_id: str, username: str, token: str) -> None:
+    album = f"/api/v1/albums/{album_id}"
+    status, body = call("PUT", f"{album}/rating", {"value": 4}, token=token)
+    step("rate an album -> 200 + aggregates", status == 200 and body["album_stats"]["count"] >= 1, body)
+    status, body = call("PUT", f"{album}/rating", {"value": 4})
+    step("guest rating -> 401", status == 401, body)
+    status, review = call("POST", f"{album}/reviews", {"body": "Smoke review", "rating": 4.5}, token=token)
+    step("write a review with a rating -> 201", status == 201 and review["rating"] == 4.5, review)
+    status, body = call("POST", f"{album}/reviews", {"body": "Again"}, token=token)
+    step("a second review -> 409 review_exists", status == 409 and body["code"] == "review_exists", body)
+    status, page = call("GET", f"{album}/reviews?sort=popular")
+    step("guests read community reviews", status == 200 and review["id"] in [i["id"] for i in page["items"]], page)
+    status, body = call("GET", album, token=token)
+    step("album page shows my review", body["viewer"]["review_id"] == review["id"], body)
+    entries = []
+    for visibility in ("public", "private"):
+        status, entry = call("POST", "/api/v1/diary-entries", {"album_id": album_id, "visibility": visibility}, token=token)
+        step(f"log a {visibility} listen -> 201", status == 201, entry)
+        entries.append(entry)
+    step("the second listen is a re-listen", entries[1]["relisten"] is True, entries[1])
+    status, body = call("GET", f"/api/v1/diary-entries/{entries[1]['id']}")
+    step("a private entry is 404 for guests", status == 404, body)
+    _, page = call("GET", f"/api/v1/users/{username}/diary")
+    step("guests see only public entries", [i["id"] for i in page["items"]] == [entries[0]["id"]], page)
+    _, body = call("GET", f"/api/v1/users/{username}")
+    counts = [body["counts"][name] for name in ("ratings", "reviews", "diary_entries")]
+    step("profile counts exclude private entries", counts == [1, 1, 1], body)
 
 
 def main() -> int:
@@ -159,7 +190,7 @@ def main() -> int:
         status, html = fetch_bytes(path)
         step(f"{path} serves Swagger UI", status == 200 and b"SwaggerUIBundle" in html, status)
 
-    check_catalog()
+    album_id = check_catalog()
 
     for user in (alice, bob):
         status, body = call(
@@ -225,6 +256,8 @@ def main() -> int:
     step("guest avatar upload -> 401", status == 401, body)
 
     wait_for("bob's projection reaches Core (event)", lambda: call("GET", f"/api/v1/users/{bob}")[0] == 200)
+
+    check_music_logging(album_id, alice, token)
 
     status, body = call("PUT", f"/api/v1/users/{bob}/follow", token=token)
     step("alice follows bob -> 204", status == 204, body)
