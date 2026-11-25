@@ -28,9 +28,9 @@ class PublicProfileView(APIView):
             "avatar_url": user.avatar_url,
             "joined_at": user.joined_at,
             "counts": {
-                "ratings": 0,
-                "reviews": 0,
-                "diary_entries": 0,
+                "ratings": profile.ratings,
+                "reviews": profile.reviews,
+                "diary_entries": profile.diary_entries,
                 "posts": 0,
                 "followers": profile.followers,
                 "following": profile.following,
