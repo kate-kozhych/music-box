@@ -1,0 +1,48 @@
+{
+  "properties": {
+    "correlation_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Correlation Id"
+    },
+    "event_id": {
+      "format": "uuid",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "occurred_at": {
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "payload": {
+      "additionalProperties": true,
+      "title": "Payload",
+      "type": "object"
+    },
+    "producer": {
+      "title": "Producer",
+      "type": "string"
+    },
+    "type": {
+      "title": "Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "event_id",
+    "type",
+    "occurred_at",
+    "producer",
+    "payload"
+  ],
+  "title": "Envelope",
+  "type": "object"
+}

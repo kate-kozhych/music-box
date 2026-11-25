@@ -1,0 +1,20 @@
+{
+  "properties": {
+    "followee_id": {
+      "format": "uuid",
+      "title": "Followee Id",
+      "type": "string"
+    },
+    "follower_id": {
+      "format": "uuid",
+      "title": "Follower Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "follower_id",
+    "followee_id"
+  ],
+  "title": "FollowCreatedV1",
+  "type": "object"
+}

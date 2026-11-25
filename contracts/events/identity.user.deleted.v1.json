@@ -1,0 +1,20 @@
+{
+  "properties": {
+    "deleted_at": {
+      "format": "date-time",
+      "title": "Deleted At",
+      "type": "string"
+    },
+    "user_id": {
+      "format": "uuid",
+      "title": "User Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "user_id",
+    "deleted_at"
+  ],
+  "title": "UserDeletedV1",
+  "type": "object"
+}

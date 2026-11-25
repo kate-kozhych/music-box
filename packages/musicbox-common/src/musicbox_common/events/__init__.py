@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -83,11 +84,26 @@ class FollowCreatedV1(_Payload):
     followee_id: uuid.UUID
 
 
+PAYLOADS: Final[Mapping[str, type[BaseModel]]] = {
+    USER_REGISTERED: UserRegisteredV1,
+    USER_PROFILE_UPDATED: UserProfileUpdatedV1,
+    USER_STATUS_CHANGED: UserStatusChangedV1,
+    USER_DELETED: UserDeletedV1,
+    FOLLOW_CREATED: FollowCreatedV1,
+}
+
+
+def contract_schemas() -> dict[str, dict[str, Any]]:
+    payloads = {name: model.model_json_schema() for name, model in PAYLOADS.items()}
+    return {"envelope": Envelope.model_json_schema(), **payloads}
+
+
 __all__ = [
     "DEAD_LETTER_EXCHANGE",
     "DELIVERY_LIMIT",
     "EXCHANGE",
     "FOLLOW_CREATED",
+    "PAYLOADS",
     "USER_DELETED",
     "USER_PROFILE_UPDATED",
     "USER_REGISTERED",
@@ -98,5 +114,6 @@ __all__ = [
     "UserProfileUpdatedV1",
     "UserRegisteredV1",
     "UserStatusChangedV1",
+    "contract_schemas",
     "new_envelope",
 ]

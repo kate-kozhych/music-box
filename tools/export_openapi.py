@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = ROOT / "contracts" / "openapi"
+EVENTS_DIR = ROOT / "contracts" / "events"
 
 COMMON_ENV = {
     "SECRET": "x" * 60,
@@ -63,6 +64,12 @@ from drf_spectacular.generators import SchemaGenerator
 sys.stdout.write(json.dumps(SchemaGenerator().get_schema(request=None, public=True)))
 """
 
+EVENTS_SNIPPET = """
+import json, sys
+from musicbox_common.events import contract_schemas
+sys.stdout.write(json.dumps(contract_schemas()))
+"""
+
 SERVICES = [
     ("identity", "services/identity", IDENTITY_ENV, FASTAPI_SNIPPET.format(module="identity.app")),
     ("core", "services/core", CORE_ENV, DJANGO_SNIPPET),
@@ -88,8 +95,22 @@ def export(name: str, workdir: str, env: dict[str, str], snippet: str) -> str:
     )
     if result.returncode != 0:
         raise SystemExit(f"{name}: export failed\n{result.stderr}")
-    document = json.loads(result.stdout)
+    return result.stdout
+
+
+def render(document: object) -> str:
     return json.dumps(document, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+
+
+def documents() -> dict[Path, str]:
+    contents = {
+        OUT_DIR / f"{name}.json": render(json.loads(export(name, workdir, env, snippet)))
+        for name, workdir, env, snippet in SERVICES
+    }
+    events = json.loads(export("events", "services/identity", IDENTITY_ENV, EVENTS_SNIPPET))
+    return contents | {
+        EVENTS_DIR / f"{name}.json": render(schema) for name, schema in events.items()
+    }
 
 
 def main() -> int:
@@ -97,20 +118,24 @@ def main() -> int:
     parser.add_argument("--check", action="store_true", help="Fail if a file is stale.")
     args = parser.parse_args()
 
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    stale: list[str] = []
-    for name, workdir, env, snippet in SERVICES:
-        content = export(name, workdir, env, snippet)
-        target = OUT_DIR / f"{name}.json"
-        if args.check:
-            if not target.exists() or target.read_text(encoding="utf-8") != content:
-                stale.append(name)
-            continue
-        target.write_text(content, encoding="utf-8")
-        print(f"wrote {target.relative_to(ROOT)}")
+    contents = documents()
+    known = {*OUT_DIR.glob("*.json"), *EVENTS_DIR.glob("*.json")}
+    stale = sorted(
+        str(path.relative_to(ROOT))
+        for path in known | set(contents)
+        if not path.exists() or path.read_text(encoding="utf-8") != contents.get(path)
+    )
+    if not args.check:
+        for path in known - set(contents):
+            path.unlink()
+        for path, content in contents.items():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+            print(f"wrote {path.relative_to(ROOT)}")
+        return 0
 
     if stale:
-        print(f"Stale OpenAPI contracts: {', '.join(stale)}. Run tools/export_openapi.py.")
+        print(f"Stale contracts: {', '.join(stale)}. Run tools/export_openapi.py.")
         return 1
     return 0
 
