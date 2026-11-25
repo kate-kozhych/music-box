@@ -75,7 +75,10 @@ async def delete_my_account(
     container: Container,
 ) -> Response:
     cmd = DeleteAccount(
-        account_id=principal.user_id, password=body.password, client_ip=client_ip(request)
+        account_id=principal.user_id,
+        password=body.password,
+        client_ip=client_ip(request),
+        is_admin=principal.is_admin,
     )
     async with container.uow() as uow:
         await delete_account(

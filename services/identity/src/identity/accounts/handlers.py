@@ -274,6 +274,8 @@ async def delete_account(
     4. The avatar file is removed after the commit. A storage failure is logged
        and leaves an orphan file; it never resurrects the account.
     """
+    if cmd.is_admin:
+        await uow.accounts.count_active_admins(for_update=True)
     account = await active_account_for_update(cmd.account_id, uow)
     await _confirm_password(account, cmd.password, cmd.client_ip, hasher, attempts)
     if account.role == Role.ADMIN and await uow.accounts.count_active_admins(for_update=True) <= 1:

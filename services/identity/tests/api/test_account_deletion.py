@@ -8,6 +8,7 @@ stores never disagree in a way that leaves a deleted user signed in.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from pathlib import Path
 from typing import Any
@@ -335,6 +336,56 @@ async def test_an_admin_can_delete_their_account_while_another_admin_remains(
     response = await delete(client, first.json()["access_token"])
 
     assert response.status_code == 204
+
+
+class OverlappingHasher:
+    def __init__(self, real: Any) -> None:
+        self._real = real
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._real, name)
+
+    async def verify(self, password_hash: str, password: str) -> bool:
+        await asyncio.sleep(0.2)
+        result: bool = await self._real.verify(password_hash, password)
+        return result
+
+
+async def test_two_remaining_admins_deleting_at_once_leave_one(
+    client: httpx.AsyncClient, container: Container
+) -> None:
+    container.hasher = OverlappingHasher(container.hasher)
+    tokens = [
+        (await admin_session(client, container, name)).json()["access_token"]
+        for name in ("root", "root2")
+    ]
+
+    responses = await asyncio.gather(*(delete(client, token) for token in tokens))
+
+    assert sorted(response.status_code for response in responses) == [204, 409]
+
+
+async def test_two_remaining_admins_blocking_each_other_leave_one(
+    client: httpx.AsyncClient, container: Container
+) -> None:
+    logins = [(await admin_session(client, container, name)).json() for name in ("root", "root2")]
+    targets = [login["user"]["id"] for login in reversed(logins)]
+
+    responses = await asyncio.gather(
+        *(
+            client.post(
+                f"/api/v1/admin/users/{target}/block",
+                json={"reason": "conflict"},
+                headers=bearer(login["access_token"]),
+            )
+            for login, target in zip(logins, targets, strict=True)
+        )
+    )
+
+    assert 204 in {response.status_code for response in responses}
+    assert all(response.status_code in {204, 401, 403, 409} for response in responses)
+    async with container.uow() as uow:
+        assert await uow.accounts.count_active_admins() == 1
 
 
 # --- Failure injection across the three stores --------------------------------
