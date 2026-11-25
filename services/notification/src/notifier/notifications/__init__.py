@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -10,7 +10,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from pymongo.errors import DuplicateKeyError
 
-from musicbox_common.errors import FieldError, validation_failed
+from musicbox_common.errors import FieldError, not_found, validation_failed
 from musicbox_common.events import CommentCreatedV1, FollowCreatedV1, LikeCreatedV1
 from musicbox_common.pagination import Cursor
 from notifier import content
@@ -22,6 +22,7 @@ LIKE = "LIKE"
 COMMENT = "COMMENT"
 TARGET_USER = "user"
 TARGET_COMMENT = "comment"
+MARK_BATCH = 1000
 
 
 def dedupe_key(
@@ -210,6 +211,40 @@ async def unread_count(db: Database, recipient_id: uuid.UUID) -> int:
     ]
     counted = await _aggregate(db, pipeline)
     return int(counted[0]["unread"]) if counted else 0
+
+
+async def mark_read(db: Database, recipient_id: uuid.UUID, notification_id: str) -> None:
+    if not ObjectId.is_valid(notification_id):
+        raise not_found("No such notification.")
+    object_id = ObjectId(notification_id)
+    shown = await _aggregate(
+        db, [{"$match": _shown_to(recipient_id, _id=object_id)}, *_by_visible_actors()]
+    )
+    if not shown:
+        raise not_found("No such notification.")
+    await _mark(db, recipient_id, [object_id])
+
+
+async def mark_all_read(db: Database, recipient_id: uuid.UUID, requested_at: datetime) -> None:
+    ids = await _unread_ids(db, recipient_id, created_at={"$lte": requested_at})
+    for start in range(0, len(ids), MARK_BATCH):
+        await _mark(db, recipient_id, ids[start : start + MARK_BATCH])
+
+
+async def _unread_ids(db: Database, recipient_id: uuid.UUID, **extra: Any) -> list[ObjectId]:
+    pipeline = [
+        {"$match": _shown_to(recipient_id, read_at=None, **extra)},
+        *_by_visible_actors(),
+        {"$project": {"_id": 1}},
+    ]
+    return [doc["_id"] for doc in await _aggregate(db, pipeline)]
+
+
+async def _mark(db: Database, recipient_id: uuid.UUID, ids: Sequence[ObjectId]) -> None:
+    await db[NOTIFICATIONS].update_many(
+        {"_id": {"$in": list(ids)}, "recipient_id": str(recipient_id), "read_at": None},
+        {"$set": {"read_at": datetime.now(UTC)}},
+    )
 
 
 async def _aggregate(db: Database, pipeline: list[dict[str, Any]]) -> list[dict[str, Any]]:

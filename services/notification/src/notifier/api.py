@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, status
 from pydantic import BaseModel, Field
 
 from musicbox_common.auth import Principal
@@ -53,6 +53,10 @@ def _database(request: Request) -> Database:
     return database
 
 
+async def _request_time() -> datetime:
+    return datetime.now(UTC)
+
+
 @router.get(
     "",
     response_model=NotificationPage,
@@ -90,6 +94,32 @@ async def unread_count(
     return UnreadCount(
         count=await notifications.unread_count(_database(request), principal.user_id)
     )
+
+
+@router.post(
+    "/read-all",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Mark every notification that exists now as read",
+)
+async def mark_all_read(
+    request: Request,
+    requested_at: Annotated[datetime, Depends(_request_time)],
+    principal: Annotated[Principal, Depends(current_principal)],
+) -> None:
+    await notifications.mark_all_read(_database(request), principal.user_id, requested_at)
+
+
+@router.post(
+    "/{notification_id}/read",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Mark one of my notifications as read",
+)
+async def mark_read(
+    request: Request,
+    notification_id: str,
+    principal: Annotated[Principal, Depends(current_principal)],
+) -> None:
+    await notifications.mark_read(_database(request), principal.user_id, notification_id)
 
 
 def _serialise(doc: dict[str, Any], actors: dict[str, Any]) -> Notification:

@@ -306,6 +306,20 @@
         ]
       }
     },
+    "/api/v1/notifications/read-all": {
+      "post": {
+        "operationId": "mark_all_read_api_v1_notifications_read_all_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Mark every notification that exists now as read",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
     "/api/v1/notifications/unread-count": {
       "get": {
         "operationId": "unread_count_api_v1_notifications_unread_count_get",
@@ -322,6 +336,41 @@
           }
         },
         "summary": "How many of my notifications are unread",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/v1/notifications/{notification_id}/read": {
+      "post": {
+        "operationId": "mark_read_api_v1_notifications__notification_id__read_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notification_id",
+            "required": true,
+            "schema": {
+              "title": "Notification Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mark one of my notifications as read",
         "tags": [
           "notifications"
         ]
