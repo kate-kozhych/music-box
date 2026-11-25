@@ -15,6 +15,7 @@ urlpatterns = [
     path("api/v1/", include("musicbox_core.apps.reviews.api.urls")),
     path("api/v1/", include("musicbox_core.apps.diary.api.urls")),
     path("api/v1/", include("musicbox_core.apps.posts.api.urls")),
+    path("api/v1/", include("musicbox_core.apps.interactions.api.urls")),
     path("api/v1/", include("musicbox_core.apps.profiles.api.urls")),
     path("api/v1/", include("musicbox_core.apps.social.api.urls")),
 ]

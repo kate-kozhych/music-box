@@ -27,6 +27,7 @@ class ReviewSerializer(serializers.Serializer):  # type: ignore[type-arg]
     truncated = serializers.BooleanField()
     like_count = serializers.IntegerField()
     comment_count = serializers.IntegerField()
+    liked_by_me = serializers.BooleanField()
     created_at = serializers.DateTimeField()
     edited_at = serializers.DateTimeField(allow_null=True)
     edited = serializers.BooleanField()

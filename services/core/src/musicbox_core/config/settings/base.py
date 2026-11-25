@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "musicbox_core.apps.diary",
     "musicbox_core.apps.posts",
     "musicbox_core.apps.social",
+    "musicbox_core.apps.interactions",
     "musicbox_core.apps.profiles",
 ]
 

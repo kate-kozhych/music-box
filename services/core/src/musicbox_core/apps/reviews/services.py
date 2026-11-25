@@ -6,6 +6,7 @@ from django.utils import timezone
 from musicbox_common.auth import Principal
 from musicbox_common.errors import ErrorCode, conflict, not_found
 from musicbox_core.apps.catalog.selectors import get_album
+from musicbox_core.apps.platform.content import ContentType, announce_deletion
 from musicbox_core.apps.platform.domain_events import dispatch
 from musicbox_core.apps.ratings.events import RatingOrigin
 from musicbox_core.apps.ratings.services import store_rating
@@ -47,7 +48,9 @@ def edit_review(principal: Principal, review_id: str, body: str) -> Review:
 
 @transaction.atomic
 def delete_review(principal: Principal, review_id: str) -> None:
-    _own_review(principal, review_id).delete()
+    review = _own_review(principal, review_id)
+    announce_deletion(ContentType.REVIEW, review.id)
+    review.delete()
 
 
 def _own_review(principal: Principal, review_id: str) -> Review:

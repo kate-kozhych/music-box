@@ -4,13 +4,26 @@ from typing import Any
 
 from django.utils import timezone
 
+from musicbox_core.apps.catalog.models import Album
+from musicbox_core.apps.interactions.models import Comment
 from musicbox_core.apps.platform.models import OutboxEvent
 from musicbox_core.apps.posts.models import Post
+from musicbox_core.apps.reviews.models import Review
 from musicbox_core.apps.users.models import UserProfile
 
 
 def make_post(user: UserProfile, **fields: Any) -> Post:
     return Post.objects.create(user=user, **{"body": "Hi", "created_at": timezone.now(), **fields})
+
+
+def make_review(user: UserProfile, album: Album, **fields: Any) -> Review:
+    values = {"body": "Great", "created_at": timezone.now(), **fields}
+    return Review.objects.create(user=user, album=album, **values)
+
+
+def make_comment(author: UserProfile, **fields: Any) -> Comment:
+    values = {"body": "Nice", "created_at": timezone.now(), **fields}
+    return Comment.objects.create(author=author, **values)
 
 
 def hide(content: Any) -> None:
