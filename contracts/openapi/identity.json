@@ -261,6 +261,93 @@
         "title": "LoginRequest",
         "type": "object"
       },
+      "ModerationLogEntryOut": {
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "account_username": {
+            "title": "Account Username",
+            "type": "string"
+          },
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "admin_id": {
+            "format": "uuid",
+            "title": "Admin Id",
+            "type": "string"
+          },
+          "admin_username": {
+            "title": "Admin Username",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "id",
+          "admin_id",
+          "admin_username",
+          "account_id",
+          "account_username",
+          "action",
+          "reason",
+          "created_at"
+        ],
+        "title": "ModerationLogEntryOut",
+        "type": "object"
+      },
+      "ModerationLogPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ModerationLogEntryOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "ModerationLogPage",
+        "type": "object"
+      },
       "PasswordChangeRequest": {
         "additionalProperties": false,
         "properties": {
@@ -781,6 +868,80 @@
           }
         ],
         "summary": "List and filter accounts (US-039)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/moderation-log": {
+      "get": {
+        "operationId": "moderation_log_endpoint_api_v1_admin_users_moderation_log_get",
+        "parameters": [
+          {
+            "description": "1-50, default 20",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "1-50, default 20",
+              "title": "Limit"
+            }
+          },
+          {
+            "description": "next_cursor from the previous page",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "next_cursor from the previous page",
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationLogPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "User moderation log, newest first (DR-56)",
         "tags": [
           "admin"
         ]

@@ -303,6 +303,107 @@
         ],
         "type": "object"
       },
+      "Comment": {
+        "properties": {
+          "author": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserSummary"
+              }
+            ],
+            "nullable": true
+          },
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "edited": {
+            "type": "boolean"
+          },
+          "edited_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "hidden_reason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "like_count": {
+            "type": "integer"
+          },
+          "liked_by_me": {
+            "type": "boolean"
+          },
+          "target_id": {
+            "type": "string"
+          },
+          "target_type": {
+            "description": "post or review",
+            "type": "string"
+          }
+        },
+        "required": [
+          "author",
+          "body",
+          "created_at",
+          "deleted",
+          "edited",
+          "edited_at",
+          "hidden",
+          "hidden_reason",
+          "id",
+          "like_count",
+          "liked_by_me",
+          "target_id",
+          "target_type"
+        ],
+        "type": "object"
+      },
+      "CommentInputRequest": {
+        "properties": {
+          "body": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      },
+      "CommentPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Comment"
+            },
+            "type": "array"
+          },
+          "next_cursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "type": "object"
+      },
       "Counts": {
         "properties": {
           "diary_entries": {
@@ -394,6 +495,10 @@
           "hidden": {
             "type": "boolean"
           },
+          "hidden_reason": {
+            "nullable": true,
+            "type": "string"
+          },
           "id": {
             "type": "string"
           },
@@ -430,6 +535,7 @@
           "album",
           "created_at",
           "hidden",
+          "hidden_reason",
           "id",
           "listened_on",
           "note",
@@ -626,6 +732,97 @@
         ],
         "type": "object"
       },
+      "HideRequest": {
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "ModerationAction": {
+        "properties": {
+          "action": {
+            "description": "hide or restore",
+            "type": "string"
+          },
+          "admin": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserSummary"
+              }
+            ],
+            "nullable": true
+          },
+          "admin_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "reason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "target_id": {
+            "type": "string"
+          },
+          "target_type": {
+            "description": "post, review, comment or diary_entry",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "admin",
+          "admin_id",
+          "created_at",
+          "id",
+          "reason",
+          "target_id",
+          "target_type"
+        ],
+        "type": "object"
+      },
+      "ModerationLog": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ModerationAction"
+            },
+            "type": "array"
+          },
+          "next_cursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "type": "object"
+      },
+      "PatchedCommentInputRequest": {
+        "properties": {
+          "body": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "PatchedDiaryEditRequest": {
         "properties": {
           "listened_on": {
@@ -647,6 +844,21 @@
         },
         "type": "object"
       },
+      "PatchedPostEditRequest": {
+        "properties": {
+          "album_id": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "body": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "PatchedReviewEditRequest": {
         "properties": {
           "body": {
@@ -655,6 +867,107 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "Post": {
+        "properties": {
+          "album": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AlbumSummary"
+              }
+            ],
+            "nullable": true
+          },
+          "author": {
+            "$ref": "#/components/schemas/UserSummary"
+          },
+          "body": {
+            "type": "string"
+          },
+          "comment_count": {
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "edited": {
+            "type": "boolean"
+          },
+          "edited_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "hidden_reason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "like_count": {
+            "type": "integer"
+          },
+          "liked_by_me": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "album",
+          "author",
+          "body",
+          "comment_count",
+          "created_at",
+          "edited",
+          "edited_at",
+          "hidden",
+          "hidden_reason",
+          "id",
+          "like_count",
+          "liked_by_me"
+        ],
+        "type": "object"
+      },
+      "PostCreateRequest": {
+        "properties": {
+          "album_id": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "body": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      },
+      "PostPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Post"
+            },
+            "type": "array"
+          },
+          "next_cursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
         "type": "object"
       },
       "PublicProfile": {
@@ -807,6 +1120,9 @@
           "like_count": {
             "type": "integer"
           },
+          "liked_by_me": {
+            "type": "boolean"
+          },
           "rating": {
             "format": "double",
             "nullable": true,
@@ -825,6 +1141,7 @@
           "hidden",
           "id",
           "like_count",
+          "liked_by_me",
           "rating",
           "truncated"
         ],
@@ -894,6 +1211,9 @@
           "like_count": {
             "type": "integer"
           },
+          "liked_by_me": {
+            "type": "boolean"
+          },
           "rating": {
             "format": "double",
             "nullable": true,
@@ -915,6 +1235,7 @@
           "hidden_reason",
           "id",
           "like_count",
+          "liked_by_me",
           "rating",
           "truncated"
         ],
@@ -1060,6 +1381,145 @@
   },
   "openapi": "3.0.3",
   "paths": {
+    "/api/v1/admin/moderation/log": {
+      "get": {
+        "operationId": "moderation_log_list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-50, default 20",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationLog"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Content moderation log (newest first)",
+        "tags": [
+          "moderation"
+        ]
+      }
+    },
+    "/api/v1/admin/moderation/{content_type}/{content_id}/hide": {
+      "post": {
+        "operationId": "moderation_hide",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "content_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "content_type",
+            "required": true,
+            "schema": {
+              "enum": [
+                "comments",
+                "diary-entries",
+                "posts",
+                "reviews"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HideRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Hide content with a reason",
+        "tags": [
+          "moderation"
+        ]
+      }
+    },
+    "/api/v1/admin/moderation/{content_type}/{content_id}/restore": {
+      "post": {
+        "operationId": "moderation_restore",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "content_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "content_type",
+            "required": true,
+            "schema": {
+              "enum": [
+                "comments",
+                "diary-entries",
+                "posts",
+                "reviews"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Restore hidden content",
+        "tags": [
+          "moderation"
+        ]
+      }
+    },
     "/api/v1/albums": {
       "get": {
         "operationId": "albums_search",
@@ -1369,6 +1829,138 @@
         ]
       }
     },
+    "/api/v1/comments/{comment_id}": {
+      "delete": {
+        "operationId": "comments_destroy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "comment_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Delete my comment",
+        "tags": [
+          "comments"
+        ]
+      },
+      "patch": {
+        "operationId": "comments_partial_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "comment_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedCommentInputRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Edit my comment",
+        "tags": [
+          "comments"
+        ]
+      }
+    },
+    "/api/v1/comments/{target_id}/like": {
+      "delete": {
+        "operationId": "comment_like_destroy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "target_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Unlike a comment (idempotent)",
+        "tags": [
+          "likes"
+        ]
+      },
+      "put": {
+        "operationId": "comment_like_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "target_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Like a comment (idempotent)",
+        "tags": [
+          "likes"
+        ]
+      }
+    },
     "/api/v1/diary-entries": {
       "post": {
         "operationId": "diary_entries_create",
@@ -1570,6 +2162,307 @@
         ]
       }
     },
+    "/api/v1/posts": {
+      "post": {
+        "operationId": "posts_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Post"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Publish a post, optionally about one album",
+        "tags": [
+          "posts"
+        ]
+      }
+    },
+    "/api/v1/posts/{post_id}": {
+      "delete": {
+        "operationId": "posts_destroy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "post_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Delete my post with its comments and likes",
+        "tags": [
+          "posts"
+        ]
+      },
+      "get": {
+        "operationId": "posts_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "post_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Post"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "One post",
+        "tags": [
+          "posts"
+        ]
+      },
+      "patch": {
+        "operationId": "posts_partial_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "post_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedPostEditRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Post"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Edit my post",
+        "tags": [
+          "posts"
+        ]
+      }
+    },
+    "/api/v1/posts/{target_id}/comments": {
+      "get": {
+        "operationId": "post_comments_list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-50, default 20",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "target_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentPage"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Comments on a post (oldest first)",
+        "tags": [
+          "comments"
+        ]
+      },
+      "post": {
+        "operationId": "post_comments_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "target_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentInputRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Comment on a post",
+        "tags": [
+          "comments"
+        ]
+      }
+    },
+    "/api/v1/posts/{target_id}/like": {
+      "delete": {
+        "operationId": "post_like_destroy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "target_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Unlike a post (idempotent)",
+        "tags": [
+          "likes"
+        ]
+      },
+      "put": {
+        "operationId": "post_like_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "target_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Like a post (idempotent)",
+        "tags": [
+          "likes"
+        ]
+      }
+    },
     "/api/v1/reviews/{review_id}": {
       "delete": {
         "operationId": "reviews_destroy",
@@ -1676,6 +2569,161 @@
         "summary": "Edit my review",
         "tags": [
           "reviews"
+        ]
+      }
+    },
+    "/api/v1/reviews/{target_id}/comments": {
+      "get": {
+        "operationId": "review_comments_list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-50, default 20",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "target_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentPage"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Comments on a review (oldest first)",
+        "tags": [
+          "comments"
+        ]
+      },
+      "post": {
+        "operationId": "review_comments_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "target_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentInputRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Comment on a review",
+        "tags": [
+          "comments"
+        ]
+      }
+    },
+    "/api/v1/reviews/{target_id}/like": {
+      "delete": {
+        "operationId": "review_like_destroy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "target_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Unlike a review (idempotent)",
+        "tags": [
+          "likes"
+        ]
+      },
+      "put": {
+        "operationId": "review_like_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "target_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "Like a review (idempotent)",
+        "tags": [
+          "likes"
         ]
       }
     },
@@ -1934,6 +2982,58 @@
         "summary": "Whom this user follows (newest first)",
         "tags": [
           "social"
+        ]
+      }
+    },
+    "/api/v1/users/{username}/posts": {
+      "get": {
+        "operationId": "user_posts_list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-50, default 20",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostPage"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "summary": "A user's posts (newest first)",
+        "tags": [
+          "posts"
         ]
       }
     },
