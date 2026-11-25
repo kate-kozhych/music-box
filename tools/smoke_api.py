@@ -236,6 +236,75 @@ def check_social(album_id: str, author: str, author_token: str, reader: str, rea
     step("the deleted post is 404", call("GET", path)[0] == 404)
 
 
+def feed_objects(path: str, token: str | None = None) -> list[str]:
+    status, page = call("GET", path, token=token)
+    step(f"GET {path} -> 200", status == 200, page)
+    return [item["object"]["id"] for item in page["items"]]
+
+
+def check_feed(author: str, author_token: str, reader_token: str) -> None:
+    status, body = call("GET", "/api/v1/feed")
+    step("guest home feed -> 401", status == 401, body)
+    status, post = call("POST", "/api/v1/posts", {"body": "Smoke feed post"}, token=author_token)
+    step("publish a post for the feed -> 201", status == 201, post)
+    step("my post is in my home feed", post["id"] in feed_objects("/api/v1/feed", author_token))
+    step("a stranger's post is not in my home feed", post["id"] not in feed_objects("/api/v1/feed", reader_token))
+    step("guests find the post in explore", post["id"] in feed_objects("/api/v1/feed/explore?type=post"))
+    step("the diary filter excludes posts", post["id"] not in feed_objects("/api/v1/feed/explore?type=diary"))
+    status, body = call("GET", "/api/v1/feed/explore?type=comment")
+    step("unknown feed type -> 422", status == 422, body)
+    call("PUT", f"/api/v1/users/{author}/follow", token=reader_token)
+    step("following adds the post", post["id"] in feed_objects("/api/v1/feed", reader_token))
+    call("DELETE", f"/api/v1/users/{author}/follow", token=reader_token)
+    step("unfollowing removes the post", post["id"] not in feed_objects("/api/v1/feed", reader_token))
+    status, body = call("DELETE", f"/api/v1/posts/{post['id']}", token=author_token)
+    step("delete the feed post -> 204", status == 204, body)
+    step("the deleted post left explore", post["id"] not in feed_objects("/api/v1/feed/explore"))
+
+
+def notification_types(token: str) -> list[str]:
+    _, page = call("GET", "/api/v1/notifications", token=token)
+    return sorted(item["type"] for item in page["items"])
+
+
+def check_notifications(owner_token: str, actor_token: str) -> None:
+    _, post = call("POST", "/api/v1/posts", {"body": "Smoke notifications"}, token=owner_token)
+    path = f"/api/v1/posts/{post['id']}"
+
+    def about_post() -> list[Any]:
+        _, page = call("GET", "/api/v1/notifications", token=owner_token)
+        found = [n for n in page["items"] if post["id"] in (n["target"]["id"], n["target"]["parent_id"])]
+        return sorted(found, key=lambda n: str(n["type"]))
+
+    for _ in range(2):
+        call("PUT", f"{path}/like", token=actor_token)
+    call("POST", f"{path}/comments", {"body": "Smoke comment"}, token=actor_token)
+    call("PUT", f"{path}/like", token=owner_token)
+    wait_for("LIKE and COMMENT notifications arrive", lambda: len(about_post()) == 2)
+    found = about_post()
+    step("one notification per action and none for my own", [n["type"] for n in found] == ["COMMENT", "LIKE"], found)
+    newest = f"/api/v1/notifications/{found[0]['id']}/read"
+    for _ in range(2):
+        status, body = call("POST", newest, token=owner_token)
+        step("mark one as read -> 204 (idempotent)", status == 204, body)
+    step("only that one is read", [n["read"] for n in about_post()] == [True, False])
+    status, body = call("POST", newest, token=actor_token)
+    step("another user's notification -> 404", status == 404, body)
+    status, body = call("POST", "/api/v1/notifications/read-all")
+    step("guest read-all -> 401", status == 401, body)
+    status, body = call("POST", "/api/v1/notifications/read-all", token=owner_token)
+    step("mark all as read -> 204", status == 204, body)
+    step("both are read", [n["read"] for n in about_post()] == [True, True])
+    admin = login(ADMIN_USERNAME, ADMIN_PASSWORD)
+    moderation = f"/api/v1/admin/moderation/posts/{post['id']}"
+    call("POST", f"{moderation}/hide", {"reason": "smoke"}, token=admin)
+    wait_for("hiding the post hides its notifications", lambda: about_post() == [])
+    call("POST", f"{moderation}/restore", token=admin)
+    wait_for("restoring the post shows them again", lambda: len(about_post()) == 2)
+    call("DELETE", path, token=owner_token)
+    wait_for("deleting the post removes its notifications", lambda: about_post() == [])
+
+
 def main() -> int:
     suffix = secrets.token_hex(3)
     alice, bob = f"alice_{suffix}", f"bob_{suffix}"
@@ -318,6 +387,8 @@ def main() -> int:
 
     reader_token = login(f"{bob}@example.com", PASSWORD)
     check_social(album_id, alice, token, bob, reader_token)
+    check_feed(alice, token, reader_token)
+    check_notifications(token, reader_token)
     login(f"{alice}@example.com", PASSWORD)
 
     status, body = call("PUT", f"/api/v1/users/{bob}/follow", token=token)
@@ -386,7 +457,8 @@ def main() -> int:
     step("login alice again -> 200", status == 200, body)
     alice_token = body["access_token"]
     status, body = call("GET", "/api/v1/notifications", token=alice_token)
-    step("alice has no notifications (recipient isolation)", status == 200 and body["items"] == [], body)
+    foreign = [n for n in body["items"] if n["actor"]["username"] != bob]
+    step("alice sees only her own notifications", status == 200 and foreign == [], body)
 
     # --- US-008: password change ------------------------------------------------
     new_password = "Better456"
@@ -424,12 +496,11 @@ def main() -> int:
         lambda: call("GET", f"/api/v1/users/{alice}")[0] == 404,
     )
 
-    def alice_tombstoned_in_notifications() -> bool:
-        _, page = call("GET", "/api/v1/notifications", token=bob_token)
-        items = page.get("items", []) if isinstance(page, dict) else []
-        return any(n["type"] == "FOLLOW" and n["actor"]["display_name"] == "[deleted]" for n in items)
-
-    wait_for("deletion event tombstones the Notification actor snapshot", alice_tombstoned_in_notifications)
+    wait_for("deletion removes the notifications alice sent", lambda: notification_types(bob_token) == [])
+    _, body = call("GET", "/api/v1/notifications/unread-count", token=bob_token)
+    step("bob's unread count is 0 again", body["count"] == 0, body)
+    _, body = call("GET", "/api/v1/feed/explore")
+    step("alice's activity left the explore feed", alice not in [i["actor"]["username"] for i in body["items"]], body)
 
     sys.stdout.write("\nAll smoke checks passed.\n")
     return 0
