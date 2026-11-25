@@ -4,6 +4,7 @@ import logging
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 
 from identity.accounts.commands import RegisterAccount
@@ -14,15 +15,36 @@ from identity.administration.model import UserModerationLog
 from identity.kernel.clock import Clock
 from identity.sessions.ports import AuthStateWriter, SessionsUnitOfWork
 from musicbox_common.auth import Principal, Role
-from musicbox_common.errors import ErrorCode, conflict, not_found
+from musicbox_common.errors import ErrorCode, FieldError, conflict, not_found, validation_failed
 from musicbox_common.events import USER_STATUS_CHANGED, UserStatusChangedV1
 from musicbox_common.ids import uuid7
+from musicbox_common.pagination import Cursor
 
 log = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True, slots=True)
+class LogPosition:
+    created_at: datetime
+    id: uuid.UUID
+
+
+@dataclass(frozen=True, slots=True)
+class LogEntry:
+    id: uuid.UUID
+    admin_id: uuid.UUID
+    admin_username: str
+    account_id: uuid.UUID
+    account_username: str
+    action: str
+    reason: str | None
+    created_at: datetime
+
+
 class ModerationLog(Protocol):
     def add(self, entry: UserModerationLog) -> None: ...
+
+    async def page(self, *, limit: int, after: LogPosition | None) -> Sequence[LogEntry]: ...
 
 
 class AdministrationUnitOfWork(SessionsUnitOfWork, Protocol):
@@ -35,6 +57,12 @@ class UserPage:
     page: int
     size: int
     total: int
+
+
+@dataclass(frozen=True, slots=True)
+class LogPage:
+    items: Sequence[LogEntry]
+    next_cursor: str | None
 
 
 async def bootstrap_admin(
@@ -81,6 +109,32 @@ async def list_users(
         limit=size,
     )
     return UserPage(items=items, page=page, size=size, total=total)
+
+
+async def list_moderation_log(
+    uow: AdministrationUnitOfWork, *, limit: int, cursor: str | None
+) -> LogPage:
+    rows = await uow.moderation_log.page(limit=limit + 1, after=_log_position(cursor))
+    items = rows[:limit]
+    next_cursor = (
+        Cursor(t=items[-1].created_at, id=str(items[-1].id)).encode() if len(rows) > limit else None
+    )
+    return LogPage(items, next_cursor)
+
+
+def _log_position(cursor: str | None) -> LogPosition | None:
+    if not cursor:
+        return None
+    position = Cursor.decode(cursor)
+    try:
+        if position.t.tzinfo is None:
+            raise ValueError
+        entry_id = uuid.UUID(position.id)
+    except ValueError as exc:
+        raise validation_failed(
+            [FieldError("cursor", "invalid", "The cursor is malformed.")]
+        ) from exc
+    return LogPosition(position.t, entry_id)
 
 
 async def _load_target(uow: AdministrationUnitOfWork, account_id: uuid.UUID) -> Account:

@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import aliased
 
 from identity.accounts.hashing import Argon2PasswordHasher
+from identity.accounts.model import Account
 from identity.accounts.ports import AccountRepository
 from identity.accounts.sql import SqlAccountRepository
-from identity.administration.handlers import ModerationLog
+from identity.administration.handlers import LogEntry, LogPosition, ModerationLog
 from identity.administration.model import UserModerationLog
 from identity.avatars import AvatarStorage, LocalAvatarStorage
 from identity.kernel.clock import Clock, SystemClock
@@ -28,6 +32,39 @@ class SqlModerationLog:
 
     def add(self, entry: UserModerationLog) -> None:
         self._session.add(entry)
+
+    async def page(self, *, limit: int, after: LogPosition | None) -> Sequence[LogEntry]:
+        admin, account = aliased(Account), aliased(Account)
+        stmt = (
+            select(UserModerationLog, admin.username, account.username)
+            .join(admin, admin.id == UserModerationLog.admin_id)
+            .join(account, account.id == UserModerationLog.account_id)
+            .order_by(UserModerationLog.created_at.desc(), UserModerationLog.id.desc())
+            .limit(limit)
+        )
+        if after is not None:
+            stmt = stmt.where(
+                or_(
+                    UserModerationLog.created_at < after.created_at,
+                    and_(
+                        UserModerationLog.created_at == after.created_at,
+                        UserModerationLog.id < after.id,
+                    ),
+                )
+            )
+        return [
+            LogEntry(
+                id=entry.id,
+                admin_id=entry.admin_id,
+                admin_username=admin_username,
+                account_id=entry.account_id,
+                account_username=account_username,
+                action=entry.action,
+                reason=entry.reason,
+                created_at=entry.created_at,
+            )
+            for entry, admin_username, account_username in await self._session.execute(stmt)
+        ]
 
 
 class IdentityUnitOfWork(SqlUnitOfWork):

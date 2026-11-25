@@ -167,7 +167,45 @@ async def test_the_user_list_filters_and_sorts(
         assert response.status_code == 200
         return [u["username"] for u in response.json()["items"]]
 
-    assert await usernames(username="FAN", sort="username") == ["amy_fan", "zed_fan"]
+    assert await usernames(username="FAN") == []
+    assert await usernames(username="AMY", sort="username") == ["amy_fan"]
     assert await usernames(role="ADMIN") == ["root"]
-    assert await usernames(username="_", sort="username") == ["amy_fan", "bob_other", "zed_fan"]
+    assert await usernames(username="amy_") == ["amy_fan"]
+    assert await usernames(username="a_y") == []
     assert await usernames(status="blocked") == []
+
+
+async def test_m02_the_moderation_log_is_admin_only(
+    register: Register, client: httpx.AsyncClient
+) -> None:
+    token = (await register("uma")).json()["access_token"]
+    path = "/api/v1/admin/users/moderation-log"
+
+    assert (await client.get(path)).status_code == 401
+    assert (await client.get(path, headers=bearer(token))).status_code == 403
+
+
+async def test_m02_dr56_the_moderation_log_is_paged_newest_first(
+    register: Register, client: httpx.AsyncClient, container: Container
+) -> None:
+    victim = (await register("vic")).json()["user"]["id"]
+    admin = await _admin_token(client, container)
+    users = "/api/v1/admin/users"
+    await client.post(f"{users}/{victim}/block", json={"reason": "spam"}, headers=bearer(admin))
+    await client.post(f"{users}/{victim}/unblock", headers=bearer(admin))
+    log = f"{users}/moderation-log"
+
+    first = (await client.get(log, params={"limit": 1}, headers=bearer(admin))).json()
+    second = (
+        await client.get(
+            log, params={"limit": 1, "cursor": first["next_cursor"]}, headers=bearer(admin)
+        )
+    ).json()
+
+    assert [first["items"][0]["action"], second["items"][0]["action"]] == ["unblock", "block"]
+    entry = second["items"][0]
+    assert (entry["reason"], entry["account_username"]) == ("spam", "vic")
+    assert (entry["admin_username"], second["next_cursor"]) == ("root", None)
+    for params in ({"limit": "51"}, {"cursor": "broken"}):
+        bad = await client.get(log, params=params, headers=bearer(admin))
+        assert bad.status_code == 422

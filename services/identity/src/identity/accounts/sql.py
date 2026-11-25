@@ -61,7 +61,7 @@ class SqlAccountRepository:
         conditions: list[ColumnElement[bool]] = []
         if username:
             escaped = username.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-            conditions.append(Account.username.like(f"%{escaped}%", escape="\\"))
+            conditions.append(Account.username.like(f"{escaped}%", escape="\\"))
         if role:
             conditions.append(Account.role == role)
         if status:
