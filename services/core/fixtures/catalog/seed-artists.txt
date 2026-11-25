@@ -1,16 +1,3 @@
-# Seed queries for `manage.py record_catalog_fixtures` (B-14).
-#
-# These are *search terms*, not data: the recorder runs one release-group
-# search per line to discover artist MBIDs, then browses each artist's
-# albums/EPs. Nothing here is treated as metadata — every stored field comes
-# back from MusicBrainz.
-#
-# The list is deliberately spread across eras, genres and scripts so the
-# offline catalog exercises accent folding, non-Latin titles, multi-artist
-# credits, EPs and secondary types (live, compilation, soundtrack).
-#
-# One line per query; blank lines and `#` comments are ignored.
-
 Björk
 Radiohead
 Kendrick Lamar
@@ -72,3 +59,69 @@ J Dilla
 Madlib
 MF DOOM
 Little Simz
+Aretha Franklin
+Marvin Gaye
+Stevie Wonder
+David Bowie
+Fleetwood Mac
+Joy Division
+New Order
+The Cure
+Nirvana
+Pixies
+Daft Punk
+Boards of Canada
+Autechre
+Tortoise
+Godspeed You! Black Emperor
+Mogwai
+Low
+Yo La Tengo
+Pavement
+Wilco
+Arcade Fire
+LCD Soundsystem
+Beach House
+Grizzly Bear
+Solange
+Frank Ocean
+Tyler, the Creator
+OutKast
+Wu-Tang Clan
+Nas
+Missy Elliott
+Lauryn Hill
+Sade
+Grace Jones
+Charles Mingus
+Thelonious Monk
+Herbie Hancock
+Ornette Coleman
+Bill Evans
+Chet Baker
+Cesária Évora
+Jorge Ben
+Os Mutantes
+Astor Piazzolla
+Mercedes Sosa
+Oumou Sangaré
+King Sunny Adé
+Bob Marley & The Wailers
+Lee "Scratch" Perry
+Augustus Pablo
+Кино
+Земфира
+Мумий Тролль
+Молчат Дома
+宇多田ヒカル
+Fishmans
+Yellow Magic Orchestra
+Rosalía
+Stromae
+Édith Piaf
+Serge Gainsbourg
+Einstürzende Neubauten
+Tangerine Dream
+Popol Vuh
+Max Richter
+Hildur Guðnadóttir

@@ -120,9 +120,7 @@ def recorded_release_group() -> Any:
 
 def check_seeded_album() -> None:
     row = recorded_release_group()
-    if row is None:
-        sys.stdout.write("SKIP  seeded album checks: no recorded MusicBrainz fixtures\n")
-        return
+    step("recorded MusicBrainz fixtures are bundled", row is not None, FIXTURES)
     query = urllib.parse.urlencode({"q": f"{row['title']} {row['artist-credit'][0]['name']}", "size": 50})
     wait_for(
         "album search finds a seeded fixture",

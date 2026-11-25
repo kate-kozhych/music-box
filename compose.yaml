@@ -208,7 +208,7 @@ services:
 
   seed-catalog:
     build: *core-build
-    command: ["python", "manage.py", "import_catalog_fixtures"]
+    command: ["python", "manage.py", "import_catalog_fixtures", "--require-minimums"]
     environment: *core-env
     networks: [backend]
     depends_on:

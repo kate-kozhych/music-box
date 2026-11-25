@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework.test import APIClient
 from tests.conftest import auth
 from tests.fake_redis import FakeRedis
@@ -559,3 +560,28 @@ def test_c01_to_c03_guests_can_read_the_catalog(api: APIClient, path: str) -> No
     stored_album()
 
     assert api.get(f"/api/v1/albums{path}", {"q": "homogenic"}).status_code == 200
+
+
+@fulltext
+def test_us014_offline_endpoints_open_no_outbound_connection(
+    api: APIClient, monkeypatch: pytest.MonkeyPatch, settings: Any
+) -> None:
+    settings.MUSICBOX_CATALOG_MODE = "offline"
+    provider_module.get_provider.cache_clear()
+    album = stored_album()
+    Album.objects.filter(pk=album.pk).update(fetched_at=timezone.now() - dt.timedelta(days=400))
+
+    def refuse(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("Offline mode opened an outbound connection.")
+
+    with monkeypatch.context() as guard:
+        for target in ("httpx.Client.send", "httpx.Client.__init__"):
+            guard.setattr(target, refuse)
+        for target in ("socket.create_connection", "socket.getaddrinfo"):
+            guard.setattr(target, refuse)
+
+        assert api.get("/api/v1/albums", {"q": "homogenic"}).status_code == 200
+        assert api.get("/api/v1/albums", {"q": "absent record"}).json()["items"] == []
+        assert api.get(f"/api/v1/albums/{album.id}").status_code == 200
+        assert api.get(f"/api/v1/albums/mbid/{album.mbid}").status_code == 200
+        assert api.get(f"/api/v1/albums/mbid/{OTHER_MBID}").status_code == 404

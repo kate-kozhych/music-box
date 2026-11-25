@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime as dt
 import json
 
 import pytest
@@ -8,6 +9,7 @@ from musicbox_core.apps.catalog import mapping
 from musicbox_core.apps.catalog.fixtures import (
     ALBUMS_NAME,
     MANIFEST_NAME,
+    RECORDED_SOURCE,
     FixtureDataset,
     fixtures_dir,
 )
@@ -17,11 +19,6 @@ from musicbox_core.apps.catalog.management.commands.import_catalog_fixtures impo
 )
 from musicbox_core.apps.catalog.models import PrimaryType
 from musicbox_core.apps.catalog.ports import MAX_GENRES
-
-pytestmark = pytest.mark.skipif(
-    not FixtureDataset.load().release_groups,
-    reason="US-014 AC2: no MusicBrainz fixtures have been recorded yet",
-)
 
 
 @pytest.fixture(scope="module")
@@ -38,6 +35,12 @@ def test_the_dataset_meets_the_documented_minimums(dataset: FixtureDataset) -> N
     counts = dataset.counts()
     assert counts["albums"] >= MIN_ALBUMS
     assert counts["artists"] >= MIN_ARTISTS
+
+
+def test_the_dataset_was_recorded_from_musicbrainz(dataset: FixtureDataset) -> None:
+    assert dataset.manifest["source"] == RECORDED_SOURCE
+    assert dt.date.fromisoformat(dataset.manifest["recorded_at"]) <= dt.datetime.now(dt.UTC).date()
+    assert dataset.manifest["counts"]["artists"] == dataset.counts()["artists"]
 
 
 def test_identifiers_are_unique_and_well_formed(dataset: FixtureDataset) -> None:

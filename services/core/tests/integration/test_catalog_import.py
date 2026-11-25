@@ -343,3 +343,24 @@ def test_other_database_errors_are_not_retried(monkeypatch: pytest.MonkeyPatch) 
 
     assert len(attempts) == 1
     assert Artist.objects.count() == 0
+
+
+@pytest.mark.usefixtures("catalog_fixtures")
+def test_reseeding_restores_a_missing_stats_row() -> None:
+    call_command("import_catalog_fixtures", stdout=StringIO())
+    AlbumRatingStats.objects.filter(album=Album.objects.first()).delete()
+
+    call_command("import_catalog_fixtures", stdout=StringIO())
+
+    assert AlbumRatingStats.objects.count() == Album.objects.count()
+
+
+def test_us014_the_bundled_fixtures_import_completely() -> None:
+    dataset = FixtureDataset.load()
+
+    call_command("import_catalog_fixtures", "--require-minimums", stdout=StringIO())
+
+    assert Album.objects.count() == len(dataset.release_groups) >= 200
+    assert Artist.objects.count() == dataset.counts()["artists"] >= 100
+    assert AlbumRatingStats.objects.count() == Album.objects.count()
+    assert not Album.objects.exclude(cover_url_250=None, cover_url_500=None).exists()

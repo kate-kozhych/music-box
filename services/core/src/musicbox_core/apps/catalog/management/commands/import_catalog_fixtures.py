@@ -7,7 +7,7 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from musicbox_core.apps.catalog import mapping
 from musicbox_core.apps.catalog.fixtures import FixtureDataset, fixtures_dir
-from musicbox_core.apps.catalog.models import Album, Artist, Genre
+from musicbox_core.apps.catalog.models import Album, AlbumRatingStats, Artist, Genre
 from musicbox_core.apps.catalog.ports import UnsupportedReleaseTypeError
 from musicbox_core.apps.catalog.services import store_release_group
 
@@ -63,6 +63,8 @@ class Command(BaseCommand):
                 skipped += 1
                 continue
             if release_group.mbid in existing:
+                album = Album.objects.get(mbid=release_group.mbid)
+                AlbumRatingStats.objects.get_or_create(album=album)
                 kept += 1
                 continue
             album = store_release_group(release_group)
