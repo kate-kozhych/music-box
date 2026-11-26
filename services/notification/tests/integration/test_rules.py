@@ -22,7 +22,7 @@ from musicbox_common.events import (
     Envelope,
 )
 from notifier import content, notifications
-from notifier.db import CONTENT_STATES, NOTIFICATIONS, USER_SNAPSHOTS, Database
+from notifier.db import CONTENT_STATES, NOTIFICATIONS, USER_SNAPSHOTS, Database, ensure_indexes
 from notifier.inbox import (
     CORE_HANDLERS,
     IDENTITY_HANDLERS,
@@ -353,15 +353,40 @@ async def test_us036_notifications_of_blocked_actors_are_kept_but_not_returned(
     assert len(await shown(db, ann)) == 1
 
 
-async def test_settled_content_states_expire_and_hidden_ones_stay(db: Database) -> None:
+async def test_only_visible_settled_content_states_expire(db: Database) -> None:
     gone, hidden, visible = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
     await deliver(db, removed(gone), removed(hidden, "hidden"), restored(visible))
 
     expiring = {doc["_id"] async for doc in db[CONTENT_STATES].find({"settled_at": {"$ne": None}})}
 
-    assert expiring == {f"post:{gone}", f"post:{visible}"}
+    assert expiring == {f"post:{visible}"}
     indexes = await db[CONTENT_STATES].index_information()
     assert indexes["settled_at_ttl"]["expireAfterSeconds"] == 30 * 24 * 3600
+
+
+async def test_deleted_content_survives_expiry_and_rejects_late_events(db: Database) -> None:
+    ann, ben, post = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    await deliver(db, removed(post))
+    await db[CONTENT_STATES].delete_many(
+        {"settled_at": {"$type": "date", "$lt": datetime.now(UTC) + timedelta(days=31)}}
+    )
+    await deliver(db, like(ben, ann, post), restored(post, at=NOW + timedelta(days=31)))
+    assert await stored(db) == 0
+    state = await db[CONTENT_STATES].find_one({"_id": f"post:{post}"})
+    assert state is not None
+    assert state["state"] == "deleted"
+    assert state["settled_at"] is None
+
+
+async def test_index_bootstrap_preserves_existing_deleted_content_states(db: Database) -> None:
+    await db[CONTENT_STATES].insert_one(
+        {"_id": "post:legacy", "state": "deleted", "settled_at": datetime.now(UTC)}
+    )
+    await ensure_indexes(db)
+    await ensure_indexes(db)
+    state = await db[CONTENT_STATES].find_one({"_id": "post:legacy"})
+    assert state is not None
+    assert state["settled_at"] is None
 
 
 async def eventually(check: Callable[[], Any]) -> None:

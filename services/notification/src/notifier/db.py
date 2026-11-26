@@ -14,6 +14,10 @@ Database = AsyncDatabase[dict[str, Any]]
 
 
 async def ensure_indexes(db: Database, *, processed_event_ttl_days: int = 30) -> None:
+    await db[CONTENT_STATES].update_many(
+        {"state": "deleted", "settled_at": {"$ne": None}},
+        {"$set": {"settled_at": None}},
+    )
     notifications = db[NOTIFICATIONS]
     await notifications.create_index([("dedupe_key", ASCENDING)], name="dedupe_key_uk", unique=True)
     await notifications.create_index(

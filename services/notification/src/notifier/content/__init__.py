@@ -23,7 +23,7 @@ def reference(target_type: str, target_id: uuid.UUID | str) -> str:
 async def apply_deleted(db: Database, ref: str) -> None:
     await db[CONTENT_STATES].update_one(
         {"_id": ref},
-        {"$set": {"state": DELETED, "settled_at": datetime.now(UTC)}},
+        {"$set": {"state": DELETED, "settled_at": None}},
         upsert=True,
     )
     await db[NOTIFICATIONS].delete_many({"refs": ref})
