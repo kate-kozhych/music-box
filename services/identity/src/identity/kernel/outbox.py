@@ -9,13 +9,19 @@ from typing import Any
 
 import aio_pika
 from pydantic import BaseModel
-from sqlalchemy import Index, String, select, text
+from sqlalchemy import Index, String, select, text, update
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import Mapped, mapped_column
 
 from identity.kernel.db import Base
-from musicbox_common.events import EXCHANGE, Envelope, new_envelope
+from musicbox_common.events import (
+    EXCHANGE,
+    USER_PROFILE_UPDATED,
+    USER_REGISTERED,
+    Envelope,
+    new_envelope,
+)
 from musicbox_common.logging import request_id_var
 
 log = logging.getLogger(__name__)
@@ -57,6 +63,23 @@ class SqlOutbox:
                 published_at=None,
             )
         )
+
+    async def anonymize_user(self, user_id: uuid.UUID, username: str) -> None:
+        for event_type, fields in (
+            (
+                USER_REGISTERED,
+                {"username": username, "display_name": "[deleted]", "avatar_url": None},
+            ),
+            (USER_PROFILE_UPDATED, {"display_name": "[deleted]", "bio": "", "avatar_url": None}),
+        ):
+            await self._session.execute(
+                update(OutboxEvent)
+                .where(
+                    OutboxEvent.type == event_type,
+                    OutboxEvent.payload["user_id"].astext == str(user_id),
+                )
+                .values(payload=OutboxEvent.payload.op("||")(fields))
+            )
 
 
 def envelope_body(row: OutboxEvent) -> bytes:

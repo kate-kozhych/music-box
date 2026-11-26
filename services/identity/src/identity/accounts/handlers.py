@@ -284,6 +284,7 @@ async def delete_account(
     now = clock.now()
     avatar_key = account.avatar_key
     _tombstone(account, now)
+    await uow.outbox.anonymize_user(account.id, account.username)
     await uow.refresh_tokens.revoke_all_for_account(account.id, now)
     uow.outbox.add(USER_DELETED, UserDeletedV1(user_id=account.id, deleted_at=now))
     await uow.flush()

@@ -16,9 +16,12 @@ from typing import Any
 import httpx
 import pytest
 import redis
-from sqlalchemy import select
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
+from alembic.script import ScriptDirectory
+from sqlalchemy import Connection, select, update
 
-from conftest import CSRF, PASSWORD, Register, bearer, break_commit
+from conftest import CSRF, PASSWORD, Register, _alembic_config, bearer, break_commit
 from identity import avatars
 from identity.accounts.model import Account
 from identity.administration.handlers import bootstrap_admin
@@ -28,7 +31,13 @@ from identity.sessions.http import REFRESH_COOKIE
 from identity.sessions.store import RedisAuthStateWriter
 from musicbox_common.auth import user_state_key
 from musicbox_common.errors import AppError
-from musicbox_common.events import USER_DELETED, UserDeletedV1
+from musicbox_common.events import (
+    USER_DELETED,
+    USER_REGISTERED,
+    UserDeletedV1,
+    UserProfileUpdatedV1,
+    UserRegisteredV1,
+)
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 56
 
@@ -168,6 +177,90 @@ async def test_deletion_publishes_one_versioned_event_in_the_same_transaction(
     payload = UserDeletedV1.model_validate(await deleted_event(container))
     assert str(payload.user_id) == account_id
     assert payload.deleted_at == (await row(container, account_id)).deleted_at
+
+
+@pytest.mark.parametrize("published", [False, True])
+async def test_deletion_anonymizes_profile_events_without_affecting_other_users(
+    register: Register, client: httpx.AsyncClient, container: Container, published: bool
+) -> None:
+    registered = await register("private_name", display_name="Unique Private Name")
+    user_id = registered.json()["user"]["id"]
+    token = registered.json()["access_token"]
+    response = await client.patch(
+        "/api/v1/account", json={"bio": "Unique Private Biography"}, headers=bearer(token)
+    )
+    assert response.status_code == 200
+    other = await register("other_user")
+    if published:
+        async with container.session_factory() as session, session.begin():
+            await session.execute(update(OutboxEvent).values(published_at=container.clock.now()))
+    assert (await delete(client, token)).status_code == 204
+    async with container.session_factory() as session:
+        events = (await session.scalars(select(OutboxEvent))).all()
+    own = [e for e in events if e.payload["user_id"] == user_id]
+    assert len(own) == 3
+    for event in own:
+        assert "private_name" not in str(event.payload)
+        assert "Unique Private" not in str(event.payload)
+        if event.type == USER_REGISTERED:
+            assert UserRegisteredV1.model_validate(event.payload).display_name == "[deleted]"
+        elif event.type != USER_DELETED:
+            assert UserProfileUpdatedV1.model_validate(event.payload).bio == ""
+    assert any(
+        e.payload["user_id"] == other.json()["user"]["id"]
+        and e.payload.get("username") == "other_user"
+        for e in events
+    )
+
+
+async def test_failed_deletion_rolls_back_outbox_anonymization(
+    register: Register, client: httpx.AsyncClient, container: Container
+) -> None:
+    registered = await register("kept_name")
+    break_commit(container)
+    with pytest.raises(RuntimeError):
+        await delete(client, registered.json()["access_token"])
+    async with container.session_factory() as session:
+        event = (await session.scalars(select(OutboxEvent))).one()
+    assert event.payload["username"] == "kept_name"
+
+
+async def test_upgrade_anonymizes_existing_deleted_users_outbox(
+    register: Register, client: httpx.AsyncClient, container: Container
+) -> None:
+    registered = await register("old_name")
+    user_id = registered.json()["user"]["id"]
+    token = registered.json()["access_token"]
+    assert (
+        await client.patch("/api/v1/account", json={"bio": "Old biography"}, headers=bearer(token))
+    ).status_code == 200
+    async with container.session_factory() as session:
+        originals = {
+            e.event_id: dict(e.payload) for e in (await session.scalars(select(OutboxEvent))).all()
+        }
+    assert (await delete(client, token)).status_code == 204
+    async with container.session_factory() as session, session.begin():
+        for event_id, payload in originals.items():
+            await session.execute(
+                update(OutboxEvent).where(OutboxEvent.event_id == event_id).values(payload=payload)
+            )
+    migration = ScriptDirectory.from_config(_alembic_config(container.settings)).get_revision(
+        "0002"
+    )
+    assert migration is not None
+
+    def upgrade(connection: Connection) -> None:
+        with Operations.context(MigrationContext.configure(connection)):
+            migration.module.upgrade()
+            migration.module.upgrade()
+
+    async with container.engine.begin() as connection:
+        await connection.run_sync(upgrade)
+    async with container.session_factory() as session:
+        events = (await session.scalars(select(OutboxEvent))).all()
+    assert all(e.payload["user_id"] == user_id for e in events)
+    assert "old_name" not in str([e.payload for e in events])
+    assert "Old biography" not in str([e.payload for e in events])
 
 
 async def test_every_token_stops_working_everywhere(
